@@ -7,11 +7,12 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [x] A03 Laravel application and versioned health route. Evidence: backend `caf20fa`.
 - [x] A04 SQLite-isolated HR core migration tests. Evidence: backend `dbfd310`, 4 tests / 11 assertions.
 - [x] A05 Agent workflow contract and roadmap. Evidence: backend `fde5c83`, frontend `e67dced`.
-- [ ] A06 CI verified green in GitHub for both repos (workflows committed; run conclusion not yet verified).
+- [x] A06 Main-branch CI confirmed green on both repos: frontend run 37947670780, backend run 37947686211 (2026-10-09).
 - [ ] A07 PostgreSQL dedicated ITP HRM database + least-privilege user + isolated integration tests. BLOCKED: existing instances are shared/unknown ownership; no dedicated DB identified.
-- [ ] A08 Audit/authorization and tenant-scoping acceptance tests.
+- [ ] A08 Full audit, authorization and tenant-scoping acceptance tests (read-only slice is covered under A08a; mutation permissions and audit remain).
+- [x] A08a Read-only employee listing: per-company roles, explicit manager department scope, negative and temporal access tests; SQLite and PostgreSQL CI on PR #2, run 37949311877. Role matrix still provisional.
 - [ ] A09 User login/session with proper CSRF and secure cookie topology.
-- [ ] A10 CI database service and migrations against PostgreSQL.
+- [x] A10 Ephemeral PostgreSQL 16 service in GitHub Actions; core + access migrations and integration tests green without warnings, run 37949311877. This does NOT provision a persistent database.
 - [ ] A11 Reusable UI tables, forms, dialogs, feedback and accessibility tests.
 - [ ] A12 Structured error handling / API response contract and tests.
 
@@ -19,7 +20,8 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] B01 Company hierarchy CRUD + validation + company isolation.
 - [ ] B02 Departments tree and cycle prevention.
 - [ ] B03 Positions/staffing versions and approved state.
-- [ ] B04 Employee register, unique personnel number and authorization.
+- [ ] B04 Full employee register, unique personnel number and authorization (create/update/delete and audit not implemented).
+- [x] B04a Read-only minimal employee list with authorized company/department scopes and bounded pagination (PR #2, run 37949311877).
 - [ ] B05 Effective-dated assignment + overlap/conflict restrictions.
 - [ ] B06 Vue connected organization, employee and staffing views.
 - [ ] B07 API+UI integration tests with PostgreSQL, error/loading/empty states.

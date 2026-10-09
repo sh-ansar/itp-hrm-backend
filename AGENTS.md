@@ -14,7 +14,7 @@ This is a long-lived personnel management system based on the uploaded "Кадр
 8. Report succinctly: done, verification, SHA, blocked, next.
 
 ## Guardrails
-- Only work in C:\dev\itp-hrm\backend and C:\dev\itp-hrm\frontend on device Ansar. Do not access production or other project services.
+- Current user-approved mode is GitHub-only: work in separate branches of sh-ansar/itp-hrm-backend and sh-ansar/itp-hrm-frontend, use pull requests, and avoid local devices, production or other services. The previous C:\dev\itp-hrm checkout is reserved for a later explicitly authorized phase.
 - Do not modify existing PostgreSQL instances/databases or services until explicitly verified as project-specific and safe; use SQLite in-memory for tests until a dedicated PostgreSQL database is provisioned.
 - Never commit .env, secrets, personal employee records or real payroll data.
 - PostgreSQL canonical data, Redis queue/cache only; domain writes are transactional and auditable.
