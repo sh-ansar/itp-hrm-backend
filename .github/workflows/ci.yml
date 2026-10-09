@@ -12,11 +12,19 @@ jobs:
           php-version: '8.4'
           extensions: mbstring, pdo_sqlite, sqlite3, fileinfo
           coverage: none
+      - name: Create isolated test environment file
+        run: printf 'APP_ENV=testing\\n' > .env
       - run: composer install --prefer-dist --no-interaction --no-progress
       - name: Run isolated SQLite tests
         env:
           APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-        run: php artisan test --display-warnings --fail-on-warning
+        run: |
+          set -o pipefail
+          php artisan test --display-warnings --fail-on-warning 2>&1 | tee test-output.log
+          if grep -Eq 'Tests:[[:space:]]+[0-9]+ warnings?' test-output.log; then
+            echo '::error::PHPUnit warnings detected; fix them before merging'
+            exit 1
+          fi
 
   postgres-tests:
     runs-on: ubuntu-latest
@@ -54,8 +62,16 @@ jobs:
           php-version: '8.4'
           extensions: mbstring, pdo_pgsql, pgsql, fileinfo
           coverage: none
+      - name: Create isolated test environment file
+        run: printf 'APP_ENV=testing\\n' > .env
       - run: composer install --prefer-dist --no-interaction --no-progress
       - name: Verify PostgreSQL migrations
         run: php artisan migrate --force
       - name: Run PostgreSQL integration tests
-        run: php artisan test --display-warnings --fail-on-warning
+        run: |
+          set -o pipefail
+          php artisan test --display-warnings --fail-on-warning 2>&1 | tee test-output.log
+          if grep -Eq 'Tests:[[:space:]]+[0-9]+ warnings?' test-output.log; then
+            echo '::error::PHPUnit warnings detected; fix them before merging'
+            exit 1
+          fi
