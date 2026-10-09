@@ -13,7 +13,7 @@ jobs:
           extensions: mbstring, pdo_sqlite, sqlite3, fileinfo
           coverage: none
       - name: Create isolated test environment file
-        run: printf 'APP_ENV=testing\\n' > .env
+        run: echo APP_ENV=testing > .env
       - run: composer install --prefer-dist --no-interaction --no-progress
       - name: Run isolated SQLite tests
         env:
@@ -63,7 +63,7 @@ jobs:
           extensions: mbstring, pdo_pgsql, pgsql, fileinfo
           coverage: none
       - name: Create isolated test environment file
-        run: printf 'APP_ENV=testing\\n' > .env
+        run: echo APP_ENV=testing > .env
       - run: composer install --prefer-dist --no-interaction --no-progress
       - name: Verify PostgreSQL migrations
         run: php artisan migrate --force
