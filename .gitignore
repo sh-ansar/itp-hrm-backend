@@ -9,3 +9,11 @@
 /.phpunit.cache/
 .phpunit.result.cache
 .idea/
+
+/php.local.ini
+/composer.lock.bak
+
+/vendor/
+/.env
+/php.local.ini
+
