@@ -15,7 +15,9 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 - [x] PHP project-local extensions and isolated SQLite tests: 4 passed, 11 assertions.
 - [x] Developer workflow policy in AGENTS.md.
 - [ ] Dedicated PostgreSQL ITP HRM database and least-privilege account (BLOCKED until credentials/isolated instance confirmed). Do not touch existing databases.
-- [ ] CI for frontend and backend, authentication, authorization, scoped audit tests.
+- [x] Frontend/backend CI confirmed green on main; backend also tests PostgreSQL 16 in ephemeral GitHub service.
+- [x] Initial read-only scoped personnel list + authentication, company role and department access checks; PostgreSQL and SQLite tests validated on PR #2.
+- [ ] Complete role grant workflow, audit, CRUD authorization and CSRF deployment topology.
 
 ## Gate 1 — First vertical slice
 - [ ] Company, departments, positions and employees secured API (CRUD with validation, tenancy checks, audit, transactions).
@@ -38,4 +40,4 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 Migration + authorized API + validation + history + tests + error/loading/empty UI states + docs + git SHA. For business features, passing only skeleton tests does NOT count as done.
 
 ## Next action
-Implement API contract and auth/scope tests before exposing employee endpoints; establish dedicated PostgreSQL DB only after verifying it will not affect running project databases.
+Confirm final HR role matrix and company/department rules; add audited role provisioning and secure employee mutation APIs before UI connects to sensitive data. Establish a persistent dedicated PostgreSQL DB only after its isolation is confirmed. During the current phase use only GitHub branches and PRs.

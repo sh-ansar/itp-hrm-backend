@@ -11,8 +11,12 @@ return new class extends Migration {
         });
         Schema::create('departments', function (Blueprint $t) {
             $t->uuid('id')->primary(); $t->foreignUuid('company_id')->constrained('companies');
-            $t->foreignUuid('parent_id')->nullable()->constrained('departments');
+            $t->foreignUuid('parent_id')->nullable();
             $t->string('name'); $t->timestamps();
+        });
+        // PostgreSQL needs the departments primary key created before its self-FK.
+        Schema::table('departments', function (Blueprint $t) {
+            $t->foreign('parent_id')->references('id')->on('departments');
         });
         Schema::create('positions', function (Blueprint $t) {
             $t->uuid('id')->primary(); $t->foreignUuid('company_id')->constrained('companies');

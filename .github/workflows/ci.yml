@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
 jobs:
-  tests:
+  sqlite-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -12,7 +12,66 @@ jobs:
           php-version: '8.4'
           extensions: mbstring, pdo_sqlite, sqlite3, fileinfo
           coverage: none
+      - name: Create isolated test environment file
+        run: echo APP_ENV=testing > .env
       - run: composer install --prefer-dist --no-interaction --no-progress
-      - name: Configure testing key
-        run: echo "APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" >> "$GITHUB_ENV"
-      - run: php artisan test --compact
+      - name: Run isolated SQLite tests
+        env:
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        run: |
+          set -o pipefail
+          php artisan test --display-warnings --fail-on-warning 2>&1 | tee test-output.log
+          if grep -Eq 'Tests:[[:space:]]+[0-9]+ warnings?' test-output.log; then
+            echo '::error::PHPUnit warnings detected; fix them before merging'
+            exit 1
+          fi
+
+  postgres-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: itp_hrm_ci
+          POSTGRES_USER: hrm_test
+          POSTGRES_PASSWORD: ci_only_not_production
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hrm_test -d itp_hrm_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 8
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: itp_hrm_ci
+      DB_USERNAME: hrm_test
+      DB_PASSWORD: ci_only_not_production
+      CI_EXPECT_PGSQL: '1'
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_pgsql, pgsql, fileinfo
+          coverage: none
+      - name: Create isolated test environment file
+        run: echo APP_ENV=testing > .env
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Verify PostgreSQL migrations
+        run: php artisan migrate --force
+      - name: Run PostgreSQL integration tests
+        run: |
+          set -o pipefail
+          php artisan test --display-warnings --fail-on-warning 2>&1 | tee test-output.log
+          if grep -Eq 'Tests:[[:space:]]+[0-9]+ warnings?' test-output.log; then
+            echo '::error::PHPUnit warnings detected; fix them before merging'
+            exit 1
+          fi
