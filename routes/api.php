@@ -7,4 +7,11 @@ Route::prefix('v1')->group(function (): void {
         'status' => 'ok',
         'service' => 'itp-hrm-api',
     ]));
+    Route::middleware('auth:sanctum')->get('/me', static function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        return response()->json(['data' => [
+            'id' => $user->getAuthIdentifier(),
+            'name' => $user->name,
+        ]]);
+    });
 });
