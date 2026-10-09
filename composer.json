@@ -1,0 +1,38 @@
+{
+  "name": "itp/itp-hrm-backend",
+  "type": "project",
+  "description": "ITP HRM Laravel API",
+  "require": {
+    "php": "^8.3",
+    "laravel/framework": "^12.0",
+    "laravel/sanctum": "^4.0",
+    "laravel/tinker": "^2.10"
+  },
+  "require-dev": {
+    "fakerphp/faker": "^1.23",
+    "laravel/pint": "^1.24",
+    "laravel/sail": "^1.43",
+    "mockery/mockery": "^1.6",
+    "nunomaduro/collision": "^8.6",
+    "phpunit/phpunit": "^11.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/",
+      "Database\\Factories\\": "database/factories/",
+      "Database\\Seeders\\": "database/seeders/"
+    }
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+      "@php artisan package:discover --ansi"
+    ]
+  },
+  "config": {
+    "sortPackages": true,
+    "allowPlugins": {
+      "pestphp/pest-plugin": true
+    }
+  }
+}
