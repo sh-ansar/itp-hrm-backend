@@ -100,6 +100,17 @@ class CompanyEmployeeVisibilityTest extends TestCase
         return "/api/v1/companies/{$company}/employees";
     }
 
+    public function test_expected_postgresql_connection_in_ci(): void
+    {
+        if (getenv('CI_EXPECT_PGSQL') !== '1') {
+            $this->assertNotEmpty(DB::connection()->getDriverName());
+
+            return;
+        }
+
+        $this->assertSame('pgsql', DB::connection()->getDriverName());
+    }
+
     public function test_anonymous_user_cannot_read_personnel(): void
     {
         $company = $this->company('First company');
