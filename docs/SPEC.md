@@ -44,3 +44,6 @@ All unspecified values remain explicit assumptions rather than implementation fa
 
 ## 7. Delivery order
 Phase 0: environment, security baseline and shared UI. Phase 1: organization/staffing/employees/assignments. Phase 2: employment events/documents/leaves. Phase 3: timekeeping, talent, recruitment, analytics. Phase 4: payroll only after discovery and validation. Phase 5: legacy migration/cutover.
+
+## 8. Delivery note — partial access security (2026-10-10)
+Current implementation includes a minimal authenticated company-scoped employee list, preliminary company/department role checks, disabled-by-default role grants/revocations, and minimal event auditing. These controls are engineering proposals under NFR-01/NFR-02, not a signed-off role matrix. No personnel edits, payroll exposure or document access have been enabled. Check `docs/ACCESS-MODEL.md` for safeguards and remaining gaps. This section does not change the scope derived from the presentation.
