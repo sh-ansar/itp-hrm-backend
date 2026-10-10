@@ -12,7 +12,8 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A08 Full audit, authorization and tenant-scoping acceptance tests (read-only slice is covered under A08a; mutation permissions and audit remain).
 - [x] A08a Read-only employee listing: per-company roles, explicit manager department scope, negative and temporal access tests; SQLite and PostgreSQL CI on PR #2, run 37949311877. Role matrix still provisional.
 - [x] A08b Default-OFF authenticated company-admin grants/revocations for lower-privilege roles; idempotent updates, transactional audit, scoped validation and success-read audit. Tested in PR #4 on SQLite and PostgreSQL 16: 39 tests / 138 assertions (run 38041729281). Role matrix and activation still require approval.
-- [ ] A08c Audited permission-denial and export events, security review of access to audit records, approved role matrix, concurrent-write tests and DB-enforced immutability.
+- [ ] A08c Audited permission-denial/export events, protected audit viewing and retention, approved role matrix, non-owner DB credentials, concurrent-write tests and independent tamper-evident audit replication.
+- [x] A08d DB-level audit mutation guards in PostgreSQL 16 and SQLite: UPDATE/DELETE rejected; PostgreSQL TRUNCATE rejected. 45 tests passed on each database (SQLite 150 assertions; PostgreSQL 149 assertions); PR #6, CI run 38045155468. **Not** protection against DB owners/superusers.
 - [ ] A09 User login/session with proper CSRF and secure cookie topology.
 - [x] A10 Ephemeral PostgreSQL 16 service in GitHub Actions; core + access migrations and integration tests green without warnings, run 37949311877. This does NOT provision a persistent database.
 - [ ] A11 Reusable UI tables, forms, dialogs, feedback and accessibility tests.

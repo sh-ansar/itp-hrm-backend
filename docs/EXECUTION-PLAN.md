@@ -18,7 +18,8 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 - [x] Frontend/backend CI confirmed green on main; backend also tests PostgreSQL 16 in ephemeral GitHub service.
 - [x] Initial read-only scoped personnel list + authentication, company role and department access checks; PostgreSQL and SQLite tests validated on PR #2.
 - [x] PR #4 subphase: opt-in (default disabled) role grant/revoke API for non-admin roles, transactional audit and sensitive list-read audit; SQLite/PostgreSQL tests passed.
-- [ ] Final role matrix and release approval, denied-access/export auditing, DB-level audit immutability, CRUD authorization and CSRF deployment topology.
+- [x] PR #6 subphase: audit UPDATE/DELETE blocked in PostgreSQL/SQLite; PostgreSQL TRUNCATE blocked, 45 tests passed on both drivers.
+- [ ] Final role matrix and release approval, denied-access/export auditing, external immutable archive, retention, non-owner runtime DB role, CRUD authorization and CSRF deployment topology.
 
 ## Gate 1 — First vertical slice
 - [ ] Company, departments, positions and employees secured API (CRUD with validation, tenancy checks, audit, transactions).
@@ -41,4 +42,4 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 Migration + authorized API + validation + history + tests + error/loading/empty UI states + docs + git SHA. For business features, passing only skeleton tests does NOT count as done.
 
 ## Next action
-Next separate PR: agree and enforce secure first-party authentication/CSRF topology, define audit retention and database-level protection, then implement authorized employee create/update operations with tests. The role-grant API stays disabled by default. Establish a persistent dedicated PostgreSQL DB only after confirming isolation. Continue GitHub-only branches/PRs.
+Next separate PR: establish safe authentication/session and CSRF contract (with release flag disabled until deployment topology is approved), then proceed to authorized employee changes and denied/export audit coverage. DB-level ordinary DML protection is implemented; immutable external archive, retention and non-owner runtime DB roles remain open. The role-grant API stays disabled by default. Establish a persistent dedicated PostgreSQL DB only after confirming isolation. Continue GitHub-only branches/PRs.

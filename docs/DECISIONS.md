@@ -10,3 +10,5 @@ ADR-006: Reuse BNT design language, not BNT runtime/DOM scripts.
 ADR-007: First management API is opt-in and OFF by default; even a company admin cannot delegate the admin role through HTTP.
 ADR-008: Role grants and revocations plus audit append must use the same database transaction. Sensitive employee-list reads synchronously log minimal metadata; denied requests do not emit false-success audits.
 ADR-009: The user-to-company role matrix remains provisional until business and security approval. Admin bootstrapping is an offline controlled operation, never an anonymous API.
+
+ADR-010: Audit records are append-only via PostgreSQL database triggers (and equivalent SQLite test triggers), including TRUNCATE rejection in PostgreSQL. This is not tamper-proof against privileged database administrators; application DB access must be separated from migration ownership, and external immutable audit storage remains a release gate.
