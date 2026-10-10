@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\CompanyMembershipController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,5 +23,14 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
             ->whereUuid('company');
+
+        // Disabled by default through config/hrm.php.
+        Route::put('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'upsert'])
+            ->whereUuid('company')
+            ->whereNumber('member');
+
+        Route::delete('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'destroy'])
+            ->whereUuid('company')
+            ->whereNumber('member');
     });
 });
