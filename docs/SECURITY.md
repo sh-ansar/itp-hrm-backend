@@ -12,7 +12,7 @@ Both repositories contain only source code and synthetic test fixtures. Reposito
 ## Audit
 - Role grant/change/revoke audit writes are in the same DB transaction as membership changes.
 - Successful personnel list reads are synchronously audited with minimal metadata. Failed/denied reads are not falsely recorded as successful.
-- Database admins can still edit `hr_audit_events`: audit record permissions, independent immutable log retention, denial and export auditing must be built before sensitive data is introduced.
+- Database triggers now reject ordinary audit UPDATE/DELETE and PostgreSQL TRUNCATE; SQLite tests reject UPDATE/DELETE. Database owners and superusers can still drop/disable triggers or alter the schema. Runtime DB access must use a non-owner, restricted role. Independent immutable log storage, retention, protected audit viewing, denial/export auditing and a restore policy remain requirements. See `docs/AUDIT-INTEGRITY.md`.
 - Retention and access to audit entries must be specified with the data controller.
 
 ## Release gates

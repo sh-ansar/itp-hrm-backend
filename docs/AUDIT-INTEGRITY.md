@@ -13,7 +13,7 @@ The `hr_audit_events` table receives append-only events for approved company-rol
 - Migrations install guards *after* the audit table exists. Rolling back the guard migration deliberately removes the guards; migration privilege must be limited to trusted deployment operators.
 
 ## Validation
-`tests/Feature/HrAuditImmutabilityTest.php` must pass on both SQLite and ephemeral PostgreSQL in GitHub Actions. Test cases include regular append, changed and no-op UPDATE, row DELETE, bulk DELETE, and PostgreSQL TRUNCATE. A failed SQL statement is isolated in a test savepoint, then the original row is verified intact.
+`tests/Feature/HrAuditImmutabilityTest.php` passes on both SQLite and ephemeral PostgreSQL in GitHub Actions (PR #6, run 38045155468; 45 tests each, SQLite 150 and PostgreSQL 149 assertions). Test cases include regular append, changed and no-op UPDATE, row DELETE, bulk DELETE, and PostgreSQL TRUNCATE. A failed SQL statement is isolated in a test savepoint, then the original row is verified intact.
 
 ## Limits / operations work still required
 - **Database owners and superusers can disable/drop triggers or modify the schema.** The eventual application's runtime DB role must be a non-owner with only essential permissions. Migrations require a separate privileged account. Test CI uses the migration/owner role and is not a production privileges test.
