@@ -16,7 +16,7 @@ return new class extends Migration
 
         if ($driver === 'pgsql') {
             DB::unprepared(<<<'SQL'
-                CREATE OR REPLACE FUNCTION hrm_reject_audit_mutation() RETURNS trigger AS $
+                CREATE OR REPLACE FUNCTION hrm_reject_audit_mutation() RETURNS trigger AS $$
                 BEGIN
                     RAISE EXCEPTION 'hr_audit_events is append-only';
                 END;
