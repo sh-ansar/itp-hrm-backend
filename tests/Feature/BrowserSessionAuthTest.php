@@ -120,6 +120,37 @@ class BrowserSessionAuthTest extends TestCase
         $this->assertFalse(Auth::guard('web')->check());
     }
 
+    public function test_ip_wide_rate_limit_blocks_account_spraying(): void
+    {
+        for ($i = 0; $i < 20; $i++) {
+            $this->postJson('/auth/login', [
+                'email' => "synthetic{$i}@example.test",
+                'password' => 'wrong',
+            ])->assertUnprocessable();
+        }
+
+        $this->postJson('/auth/login', [
+            'email' => 'one-more@example.test',
+            'password' => 'wrong',
+        ])->assertStatus(429);
+    }
+
+    public function test_stateful_api_can_read_existing_web_session(): void
+    {
+        $user = $this->user();
+        config()->set('sanctum.stateful', ['localhost']);
+
+        $this->withHeaders(['Referer' => 'http://localhost/', 'Origin' => 'http://localhost']);
+        $this->postJson('/auth/login', $this->loginPayload())->assertOk();
+
+        $this->getJson('/api/v1/me')
+            ->assertOk()
+            ->assertExactJson(['data' => [
+                'id' => $user->id,
+                'name' => 'Synthetic HR user',
+            ]]);
+    }
+
     public function test_successful_login_resets_principal_attempt_counter(): void
     {
         $this->user();
