@@ -12,3 +12,6 @@ ADR-008: Role grants and revocations plus audit append must use the same databas
 ADR-009: The user-to-company role matrix remains provisional until business and security approval. Admin bootstrapping is an offline controlled operation, never an anonymous API.
 
 ADR-010: Audit records are append-only via PostgreSQL database triggers (and equivalent SQLite test triggers), including TRUNCATE rejection in PostgreSQL. This is not tamper-proof against privileged database administrators; application DB access must be separated from migration ownership, and external immutable audit storage remains a release gate.
+
+ADR-011: Use same-origin reverse proxy for first-party Vue/Laravel browser login initially. Sanctum stateful sessions and Laravel web CSRF apply, with an explicit deny-by-default CORS allowlist. `HRM_BROWSER_LOGIN_ENABLED` stays OFF until an approved host/TLS/trusted-proxy design and staging browser integration verification.
+ADR-012: No public registration or bearer tokens for the first-party SPA; rotate the session after login and invalidate on logout. Throttle failed credentials by a hashed email+IP principal and by IP. Pinia holds minimal identity only in memory.

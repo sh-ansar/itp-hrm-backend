@@ -19,7 +19,8 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 - [x] Initial read-only scoped personnel list + authentication, company role and department access checks; PostgreSQL and SQLite tests validated on PR #2.
 - [x] PR #4 subphase: opt-in (default disabled) role grant/revoke API for non-admin roles, transactional audit and sensitive list-read audit; SQLite/PostgreSQL tests passed.
 - [x] PR #6 subphase: audit UPDATE/DELETE blocked in PostgreSQL/SQLite; PostgreSQL TRUNCATE blocked, 45 tests passed on both drivers.
-- [ ] Final role matrix and release approval, denied-access/export auditing, external immutable archive, retention, non-owner runtime DB role, CRUD authorization and CSRF deployment topology.
+- [x] A09a subphase (PR #8): default-disabled session login/logout, Sanctum stateful API, negative login throttling/CSRF tests, strict CORS for same-origin SPA.
+- [ ] Final role matrix, staging HTTPS/session topology and login activation, denied-access/export auditing, immutable external audit archive, retention, non-owner runtime DB role and employee CRUD authorization.
 
 ## Gate 1 — First vertical slice
 - [ ] Company, departments, positions and employees secured API (CRUD with validation, tenancy checks, audit, transactions).
@@ -42,4 +43,4 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 Migration + authorized API + validation + history + tests + error/loading/empty UI states + docs + git SHA. For business features, passing only skeleton tests does NOT count as done.
 
 ## Next action
-Next separate PR: establish safe authentication/session and CSRF contract (with release flag disabled until deployment topology is approved), then proceed to authorized employee changes and denied/export audit coverage. DB-level ordinary DML protection is implemented; immutable external archive, retention and non-owner runtime DB roles remain open. The role-grant API stays disabled by default. Establish a persistent dedicated PostgreSQL DB only after confirming isolation. Continue GitHub-only branches/PRs.
+Next steps: finish Vue same-origin login client (frontend PR #2) and browser E2E across approved staging origin; keep both login and role-management flags OFF. Then implement authorized employee mutations and denied/export audit coverage. DB-level ordinary DML protection is implemented; immutable external archive, retention and non-owner runtime DB roles remain open. The role-grant API stays disabled by default. Establish a persistent dedicated PostgreSQL DB only after confirming isolation. Continue GitHub-only branches/PRs.
