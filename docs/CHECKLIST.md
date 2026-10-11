@@ -15,7 +15,7 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A08c Audited permission-denial/export events, protected audit viewing and retention, approved role matrix, non-owner DB credentials, concurrent-write tests and independent tamper-evident audit replication.
 - [x] A08d DB-level audit mutation guards in PostgreSQL 16 and SQLite: UPDATE/DELETE rejected; PostgreSQL TRUNCATE rejected. 45 tests passed on each database (SQLite 150 assertions; PostgreSQL 149 assertions); PR #6, CI run 38045155468. **Not** protection against DB owners/superusers.
 - [ ] A09 Complete browser login/session with approved origin/TLS/CSRF topology and end-to-end integration (feature currently default-OFF).
-- [x] A09a Default-OFF Laravel web login/logout/current-user endpoints, Sanctum stateful middleware, CSRF integration tests, 2-level login throttle and strict same-origin CORS. SQLite + PostgreSQL CI on PR #8 (final successful run to be recorded after check).
+- [x] A09a Default-OFF Laravel web login/logout/current-user endpoints, Sanctum stateful middleware, CSRF integration tests, 2-level login throttle and strict same-origin CORS. SQLite 62 tests/224 assertions, PostgreSQL 16 62 tests/223 assertions, no warnings; PR #8 run 38120806247.
 - [ ] A09b Approved production origin, trusted reverse proxies, HTTPS cookie configuration, controlled account provisioning and session expiry/rotation E2E checks.
 - [ ] A09c Vue login/client integration and browser E2E tests across frontend/backend in staging.
 - [x] A10 Ephemeral PostgreSQL 16 service in GitHub Actions; core + access migrations and integration tests green without warnings, run 37949311877. This does NOT provision a persistent database.
