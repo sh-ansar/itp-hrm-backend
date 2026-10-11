@@ -4,8 +4,9 @@
 Both repositories contain only source code and synthetic test fixtures. Repositories should be private before importing any non-synthetic data or migration samples. Never commit .env, secrets, encryption keys, real employee records, payroll data, identity documents or unredacted legacy exports.
 
 ## Identity and authorization
-- API authentication is currently `auth:sanctum`; a complete production login/session/CSRF deployment design has not yet been implemented.
+- Authenticated API uses `auth:sanctum` and now enables Sanctum stateful session middleware. First-party browser login/logout/current-user web routes exist behind `HRM_BROWSER_LOGIN_ENABLED=false` (default-OFF); Laravel's web CSRF middleware protects writes. This is not a production login release: approved HTTPS host/topology, trusted proxies, browser E2E and account provisioning remain pending.
 - Company and department permissions deny by default. Scope must be verified in queries, not inferred from a request-supplied company ID.
+- Cross-origin browser requests are denied in `config/cors.php`; in local development Vite reverse-proxies `/api`, `/auth` and `/sanctum` through a single browser origin. Session cookies must be HttpOnly and use Lax/Strict SameSite; in production login fails closed without TLS and Secure cookie configuration. Generic login errors and account/IP rate limits reduce enumeration and spraying.
 - Provisional role-management endpoints are disabled by default (`HRM_ROLE_MANAGEMENT_ENABLED=false`). Only company admins can manage non-admin memberships if enabled; self changes and admin grants are blocked.
 - Private document upload/download permissions, special-category fields (health, identity documents, payroll), and company-scoped export controls remain future features.
 
