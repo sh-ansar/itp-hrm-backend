@@ -25,6 +25,9 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A11 Reusable UI tables, forms, dialogs, feedback and accessibility tests.
 - [x] A11a Shared accessible BaseNotice and responsive pending-module BaseEmptyState, frontend PRs #5/#6, merges `18ef12e` / `2b499cb`; frontend build runs 38211222432 / 38211460465 and Chromium session runs 38211222383 / 38211460462 green. Overall A11 remains open.
 - [ ] A11b Shared loading/table/form/dialog primitives plus focused accessibility and interaction tests.
+- [x] A11b1 Shared accessible loading skeleton, frontend PR #7 merge `d4f0fe3`, build CI 38211560294 and Chromium CI 38211560259.
+- [x] A11b2 Responsive reusable data table with stable row identity, frontend PR #8 merge `65e2d49`, build CI 38211772650 and Chromium CI 38211772621. Table feature integration and focused interaction tests remain open.
+- [ ] A11b3 Reusable form and dialog primitives with component interaction/accessibility evidence.
 - [ ] A12 Structured error handling / API response contract and tests.
 - [x] A12a JSON error boundary regression tests (401/403/404/422), PR #14, merge `3a23b39`, SQLite/PostgreSQL CI run 38208205522.
 - [x] A12b Server-generated X-Request-ID for API requests, ignores untrusted client header; PR #15, merge `77763b5`, SQLite/PostgreSQL CI run 38208910888.
