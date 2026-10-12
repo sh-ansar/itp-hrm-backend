@@ -50,6 +50,18 @@ final class EmployeeShowController extends Controller
             ->limit(100)
             ->get();
 
+        $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
+        // A manager may view the basic card but not protected personnel development history.
+        $experience = $extended ? DB::table('employee_experience')->where('employee_id', $employee)
+            ->select('id','experience_type','started_on','ended_on','basis_reference')
+            ->orderByDesc('started_on')->limit(100)->get() : collect();
+        $reserve = $extended ? DB::table('employee_reserve')->where('employee_id', $employee)
+            ->select('id','target_position','reserve_level','reserve_type','joined_year','left_year','notes')
+            ->orderByDesc('joined_year')->limit(100)->get() : collect();
+        $training = $extended ? DB::table('employee_training')->where('employee_id', $employee)
+            ->select('id','training_type','training_mode','topic','provider','city','started_on','ended_on','document_reference')
+            ->orderByDesc('started_on')->limit(100)->get() : collect();
+
         $audit->record($request->user(), $company, HrAuditAction::EmployeesListed, null, [
             'detail_view' => true,
             'returned_count' => 1,
@@ -58,7 +70,11 @@ final class EmployeeShowController extends Controller
         return response()->json([
             'data' => $row,
             'assignments' => $history,
-            'meta' => ['assignments_limit' => 100, 'assignments_truncated' => $history->count() === 100],
+            'experience' => $experience,
+            'reserve' => $reserve,
+            'training' => $training,
+            'meta' => ['assignments_limit' => 100, 'assignments_truncated' => $history->count() === 100,
+                'extended_sections_visible' => $extended],
         ]);
     }
 }
