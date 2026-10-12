@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CompanyIndexController;
 use App\Http\Controllers\Api\V1\DepartmentIndexController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
+use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/employees/{employee}', EmployeeShowController::class)
             ->whereUuid('company')->whereUuid('employee');
+
+        Route::post('/companies/{company}/employees/{employee}/profile/{section}', [EmployeeProfileRecordController::class, 'store'])
+            ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['experience', 'reserve', 'training']);
 
         Route::put('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'upsert'])
             ->whereUuid('company')
