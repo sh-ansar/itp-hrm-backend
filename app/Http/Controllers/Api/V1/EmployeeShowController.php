@@ -44,13 +44,24 @@ final class EmployeeShowController extends Controller
         }
 
         $history = $assignments
-            ->select('a.id', 'd.name as department_name', 'p.name as position_name', 'a.valid_from', 'a.valid_to')
+            ->select(
+                'a.id',
+                'a.department_id',
+                'a.position_id',
+                'd.name as department_name',
+                'p.name as position_name',
+                'a.valid_from',
+                'a.valid_to',
+                'a.basis_reference',
+            )
             ->orderByDesc('a.valid_from')
             ->orderBy('a.id')
             ->limit(100)
             ->get();
 
         $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
+        $personnelWritesEnabled = $extended && (bool) config('hrm.personnel_writes_enabled', false);
+
         // A manager may view the basic card but not protected personnel development history.
         $experience = $extended ? DB::table('employee_experience')->where('employee_id', $employee)
             ->select('id','experience_type','started_on','ended_on','basis_reference','revision')
@@ -73,9 +84,13 @@ final class EmployeeShowController extends Controller
             'experience' => $experience,
             'reserve' => $reserve,
             'training' => $training,
-            'meta' => ['assignments_limit' => 100, 'assignments_truncated' => $history->count() === 100,
+            'meta' => [
+                'assignments_limit' => 100,
+                'assignments_truncated' => $history->count() === 100,
                 'extended_sections_visible' => $extended,
-                'profile_writes_enabled' => $extended && (bool) config('hrm.personnel_writes_enabled', false)],
+                'profile_writes_enabled' => $personnelWritesEnabled,
+                'assignment_writes_enabled' => $personnelWritesEnabled,
+            ],
         ]);
     }
 }
