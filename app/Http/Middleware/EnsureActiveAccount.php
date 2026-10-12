@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Domain\Identity\AccountState;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,9 +14,12 @@ final class EnsureActiveAccount
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $authenticated = $request->user();
+        $freshState = $authenticated === null
+            ? null
+            : User::query()->whereKey($authenticated->getAuthIdentifier())->value('account_status');
 
-        if ($user !== null && $user->account_status === AccountState::Active) {
+        if ($freshState === AccountState::Active->value) {
             return $next($request);
         }
 
