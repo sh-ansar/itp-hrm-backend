@@ -6,5 +6,7 @@ return [
     'role_management_enabled' => (bool) env('HRM_ROLE_MANAGEMENT_ENABLED', false),
 
     // This first-party browser login is not released until HTTPS/origin review.
+    'personnel_writes_enabled' => (bool) env('HRM_PERSONNEL_WRITES_ENABLED', false),
+
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
 ];
