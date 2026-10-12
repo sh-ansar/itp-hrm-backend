@@ -39,6 +39,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/companies/{company}/employees/{employee}/profile/{section}', [EmployeeProfileRecordController::class, 'store'])
             ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['experience', 'reserve', 'training']);
 
+        Route::put('/companies/{company}/employees/{employee}/profile/{section}/{record}', [EmployeeProfileRecordController::class, 'update'])
+            ->whereUuid('company')->whereUuid('employee')->whereUuid('record')
+            ->whereIn('section', ['experience', 'reserve', 'training']);
+
         Route::put('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'upsert'])
             ->whereUuid('company')
             ->whereNumber('member');
