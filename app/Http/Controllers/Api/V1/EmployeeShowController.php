@@ -53,6 +53,7 @@ final class EmployeeShowController extends Controller
                 'a.valid_from',
                 'a.valid_to',
                 'a.basis_reference',
+                'a.revision',
             )
             ->orderByDesc('a.valid_from')
             ->orderBy('a.id')

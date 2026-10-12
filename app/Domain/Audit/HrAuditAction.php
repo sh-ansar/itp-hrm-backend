@@ -10,5 +10,6 @@ enum HrAuditAction: string
     case PersonnelProfileRecordCreated = 'personnel.profile_record_created';
     case PersonnelProfileRecordUpdated = 'personnel.profile_record_updated';
     case PersonnelAssignmentCreated = 'personnel.assignment_created';
+    case PersonnelAssignmentUpdated = 'personnel.assignment_updated';
     case EmployeesListed = 'personnel.employees_listed';
 }

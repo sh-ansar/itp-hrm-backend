@@ -40,6 +40,9 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/companies/{company}/employees/{employee}/assignments', [EmployeeAssignmentController::class, 'store'])
             ->whereUuid('company')->whereUuid('employee');
 
+        Route::put('/companies/{company}/employees/{employee}/assignments/{assignment}', [EmployeeAssignmentController::class, 'update'])
+            ->whereUuid('company')->whereUuid('employee')->whereUuid('assignment');
+
         Route::post('/companies/{company}/employees/{employee}/profile/{section}', [EmployeeProfileRecordController::class, 'store'])
             ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['experience', 'reserve', 'training']);
 

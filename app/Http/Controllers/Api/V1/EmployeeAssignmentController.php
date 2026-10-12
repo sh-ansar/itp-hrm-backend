@@ -25,62 +25,13 @@ final class EmployeeAssignmentController extends Controller
         HrAuditWriter $audit,
     ): JsonResponse {
         $this->authorizeWrite($request, $company, $employee, $visibility);
-
-        $data = $request->validate([
-            'department_id' => ['required', 'uuid'],
-            'position_id' => ['required', 'uuid'],
-            'valid_from' => ['required', 'date_format:Y-m-d'],
-            'valid_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:valid_from'],
-            'basis_reference' => ['nullable', 'string', 'max:255'],
-        ]);
-
+        $data = $request->validate($this->rules());
         $id = (string) Str::uuid();
 
         DB::transaction(function () use ($request, $company, $employee, $data, $id, $periodPolicy, $audit): void {
-            // Serialize assignment writers for one employee on PostgreSQL. This makes
-            // the read-check-insert sequence safe from concurrent overlapping writes.
-            $lockedEmployee = DB::table('employees')
-                ->where('id', $employee)
-                ->where('company_id', $company)
-                ->lockForUpdate()
-                ->first(['id']);
-            abort_if($lockedEmployee === null, 404);
-
-            $departmentExists = DB::table('departments')
-                ->where('id', $data['department_id'])
-                ->where('company_id', $company)
-                ->exists();
-            $positionExists = DB::table('positions')
-                ->where('id', $data['position_id'])
-                ->where('company_id', $company)
-                ->exists();
-
-            if (!$departmentExists || !$positionExists) {
-                throw ValidationException::withMessages([
-                    'assignment' => 'Department and position must belong to the selected company.',
-                ]);
-            }
-
-            $existing = DB::table('employee_assignments')
-                ->where('employee_id', $employee)
-                ->orderBy('valid_from')
-                ->lockForUpdate()
-                ->get(['valid_from', 'valid_to'])
-                ->map(static fn ($row) => [
-                    'valid_from' => (string) $row->valid_from,
-                    'valid_to' => $row->valid_to === null ? null : (string) $row->valid_to,
-                ])
-                ->all();
-
-            try {
-                $periodPolicy->assertNoOverlap(
-                    $data['valid_from'],
-                    $data['valid_to'] ?? null,
-                    $existing,
-                );
-            } catch (InvalidArgumentException $e) {
-                throw ValidationException::withMessages(['valid_from' => $e->getMessage()]);
-            }
+            $this->lockEmployee($company, $employee);
+            $this->assertDirectoryOwnership($company, $data['department_id'], $data['position_id']);
+            $this->assertNoOverlap($employee, null, $data, $periodPolicy);
 
             DB::table('employee_assignments')->insert([
                 'id' => $id,
@@ -90,6 +41,7 @@ final class EmployeeAssignmentController extends Controller
                 'valid_from' => $data['valid_from'],
                 'valid_to' => $data['valid_to'] ?? null,
                 'basis_reference' => $data['basis_reference'] ?? null,
+                'revision' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -97,6 +49,7 @@ final class EmployeeAssignmentController extends Controller
             $audit->record($request->user(), $company, HrAuditAction::PersonnelAssignmentCreated, null, [
                 'employee_id' => $employee,
                 'assignment_id' => $id,
+                'revision' => 1,
             ]);
         });
 
@@ -105,7 +58,161 @@ final class EmployeeAssignmentController extends Controller
             'employee_id' => $employee,
             'valid_from' => $data['valid_from'],
             'valid_to' => $data['valid_to'] ?? null,
+            'revision' => 1,
         ]], 201);
+    }
+
+    public function update(
+        Request $request,
+        string $company,
+        string $employee,
+        string $assignment,
+        EmployeeVisibility $visibility,
+        AssignmentPeriodPolicy $periodPolicy,
+        HrAuditWriter $audit,
+    ): JsonResponse {
+        $this->authorizeWrite($request, $company, $employee, $visibility);
+
+        $rules = $this->rules();
+        if (array_diff(array_keys($request->all()), array_merge(array_keys($rules), ['revision'])) !== []) {
+            throw ValidationException::withMessages(['assignment' => 'Unexpected assignment fields.']);
+        }
+
+        $data = $request->validate(array_merge($rules, [
+            'revision' => ['required', 'integer', 'min:1', 'max:2147483646'],
+        ]));
+        $expectedRevision = (int) $data['revision'];
+        unset($data['revision']);
+
+        $nextRevision = DB::transaction(function () use (
+            $request,
+            $company,
+            $employee,
+            $assignment,
+            $data,
+            $expectedRevision,
+            $periodPolicy,
+            $audit,
+        ): int {
+            $this->lockEmployee($company, $employee);
+
+            $existing = DB::table('employee_assignments')
+                ->where('id', $assignment)
+                ->where('employee_id', $employee)
+                ->lockForUpdate()
+                ->first(['revision']);
+            abort_if($existing === null, 404);
+
+            if ((int) $existing->revision !== $expectedRevision) {
+                abort(409, 'The assignment was changed by another user. Reload before editing.');
+            }
+
+            $this->assertDirectoryOwnership($company, $data['department_id'], $data['position_id']);
+            $this->assertNoOverlap($employee, $assignment, $data, $periodPolicy);
+
+            $count = DB::table('employee_assignments')
+                ->where('id', $assignment)
+                ->where('employee_id', $employee)
+                ->where('revision', $expectedRevision)
+                ->update([
+                    'department_id' => $data['department_id'],
+                    'position_id' => $data['position_id'],
+                    'valid_from' => $data['valid_from'],
+                    'valid_to' => $data['valid_to'] ?? null,
+                    'basis_reference' => $data['basis_reference'] ?? null,
+                    'revision' => $expectedRevision + 1,
+                    'updated_at' => now(),
+                ]);
+
+            if ($count !== 1) {
+                abort(409, 'The assignment was changed by another user. Reload before editing.');
+            }
+
+            $audit->record($request->user(), $company, HrAuditAction::PersonnelAssignmentUpdated, null, [
+                'employee_id' => $employee,
+                'assignment_id' => $assignment,
+                'revision' => $expectedRevision + 1,
+            ]);
+
+            return $expectedRevision + 1;
+        });
+
+        return response()->json(['data' => [
+            'id' => $assignment,
+            'employee_id' => $employee,
+            'valid_from' => $data['valid_from'],
+            'valid_to' => $data['valid_to'] ?? null,
+            'revision' => $nextRevision,
+        ]]);
+    }
+
+    private function rules(): array
+    {
+        return [
+            'department_id' => ['required', 'uuid'],
+            'position_id' => ['required', 'uuid'],
+            'valid_from' => ['required', 'date_format:Y-m-d'],
+            'valid_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:valid_from'],
+            'basis_reference' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    private function lockEmployee(string $company, string $employee): void
+    {
+        $lockedEmployee = DB::table('employees')
+            ->where('id', $employee)
+            ->where('company_id', $company)
+            ->lockForUpdate()
+            ->first(['id']);
+
+        abort_if($lockedEmployee === null, 404);
+    }
+
+    private function assertDirectoryOwnership(string $company, string $department, string $position): void
+    {
+        $departmentExists = DB::table('departments')
+            ->where('id', $department)
+            ->where('company_id', $company)
+            ->exists();
+        $positionExists = DB::table('positions')
+            ->where('id', $position)
+            ->where('company_id', $company)
+            ->exists();
+
+        if (!$departmentExists || !$positionExists) {
+            throw ValidationException::withMessages([
+                'assignment' => 'Department and position must belong to the selected company.',
+            ]);
+        }
+    }
+
+    private function assertNoOverlap(
+        string $employee,
+        ?string $exceptAssignment,
+        array $data,
+        AssignmentPeriodPolicy $periodPolicy,
+    ): void {
+        $existing = DB::table('employee_assignments')
+            ->where('employee_id', $employee)
+            ->when($exceptAssignment !== null, fn ($query) => $query->where('id', '!=', $exceptAssignment))
+            ->orderBy('valid_from')
+            ->lockForUpdate()
+            ->get(['valid_from', 'valid_to'])
+            ->map(static fn ($row) => [
+                'valid_from' => (string) $row->valid_from,
+                'valid_to' => $row->valid_to === null ? null : (string) $row->valid_to,
+            ])
+            ->all();
+
+        try {
+            $periodPolicy->assertNoOverlap(
+                $data['valid_from'],
+                $data['valid_to'] ?? null,
+                $existing,
+            );
+        } catch (InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['valid_from' => $e->getMessage()]);
+        }
     }
 
     private function authorizeWrite(
