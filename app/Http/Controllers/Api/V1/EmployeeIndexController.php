@@ -8,6 +8,7 @@ use App\Domain\Personnel\EmployeeVisibility;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 final class EmployeeIndexController extends Controller
 {
@@ -43,9 +44,16 @@ final class EmployeeIndexController extends Controller
             ],
         );
 
+        $role = DB::table('company_user_roles')
+            ->where('company_id', $company)
+            ->where('user_id', $request->user()->getAuthIdentifier())
+            ->value('role_code');
+
         return response()->json([
             'data' => $page->items(),
             'meta' => [
+                'employee_writes_enabled' => in_array($role, ['company_admin', 'hr_specialist'], true)
+                    && (bool) config('hrm.personnel_writes_enabled', false),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
