@@ -7,6 +7,7 @@ use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\AssignmentPeriodPolicy;
 use App\Domain\Personnel\EmployeeVisibility;
 use App\Http\Controllers\Controller;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -144,6 +145,122 @@ final class EmployeeAssignmentController extends Controller
             'valid_to' => $data['valid_to'] ?? null,
             'revision' => $nextRevision,
         ]]);
+    }
+
+    public function transition(
+        Request $request,
+        string $company,
+        string $employee,
+        string $assignment,
+        EmployeeVisibility $visibility,
+        AssignmentPeriodPolicy $periodPolicy,
+        HrAuditWriter $audit,
+    ): JsonResponse {
+        $this->authorizeWrite($request, $company, $employee, $visibility);
+
+        $rules = $this->rules();
+        if (array_diff(array_keys($request->all()), array_merge(array_keys($rules), ['revision'])) !== []) {
+            throw ValidationException::withMessages(['assignment' => 'Unexpected transition fields.']);
+        }
+
+        $data = $request->validate(array_merge($rules, [
+            'revision' => ['required', 'integer', 'min:1', 'max:2147483646'],
+        ]));
+        $expectedRevision = (int) $data['revision'];
+        unset($data['revision']);
+        $nextId = (string) Str::uuid();
+
+        $result = DB::transaction(function () use (
+            $request,
+            $company,
+            $employee,
+            $assignment,
+            $data,
+            $expectedRevision,
+            $nextId,
+            $periodPolicy,
+            $audit,
+        ): array {
+            $this->lockEmployee($company, $employee);
+
+            $current = DB::table('employee_assignments')
+                ->where('id', $assignment)
+                ->where('employee_id', $employee)
+                ->lockForUpdate()
+                ->first(['valid_from', 'valid_to', 'revision']);
+            abort_if($current === null, 404);
+
+            if ((int) $current->revision !== $expectedRevision) {
+                abort(409, 'The assignment was changed by another user. Reload before transitioning.');
+            }
+            if ($current->valid_to !== null) {
+                throw ValidationException::withMessages([
+                    'assignment' => 'Only an open assignment can be transitioned.',
+                ]);
+            }
+
+            $currentStart = CarbonImmutable::createFromFormat('Y-m-d', (string) $current->valid_from);
+            $nextStart = CarbonImmutable::createFromFormat('Y-m-d', $data['valid_from']);
+            if ($nextStart->lessThanOrEqualTo($currentStart)) {
+                throw ValidationException::withMessages([
+                    'valid_from' => 'The new assignment must start after the current assignment.',
+                ]);
+            }
+
+            $this->assertDirectoryOwnership($company, $data['department_id'], $data['position_id']);
+            $this->assertNoOverlap($employee, $assignment, $data, $periodPolicy);
+
+            $closedOn = $nextStart->subDay()->toDateString();
+            $updated = DB::table('employee_assignments')
+                ->where('id', $assignment)
+                ->where('employee_id', $employee)
+                ->where('revision', $expectedRevision)
+                ->update([
+                    'valid_to' => $closedOn,
+                    'revision' => $expectedRevision + 1,
+                    'updated_at' => now(),
+                ]);
+            if ($updated !== 1) {
+                abort(409, 'The assignment was changed by another user. Reload before transitioning.');
+            }
+
+            DB::table('employee_assignments')->insert([
+                'id' => $nextId,
+                'employee_id' => $employee,
+                'department_id' => $data['department_id'],
+                'position_id' => $data['position_id'],
+                'valid_from' => $data['valid_from'],
+                'valid_to' => $data['valid_to'] ?? null,
+                'basis_reference' => $data['basis_reference'] ?? null,
+                'revision' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $audit->record($request->user(), $company, HrAuditAction::PersonnelAssignmentTransitioned, null, [
+                'employee_id' => $employee,
+                'closed_assignment_id' => $assignment,
+                'closed_assignment_revision' => $expectedRevision + 1,
+                'new_assignment_id' => $nextId,
+            ]);
+
+            return ['closed_on' => $closedOn, 'closed_revision' => $expectedRevision + 1];
+        });
+
+        return response()->json(['data' => [
+            'closed_assignment' => [
+                'id' => $assignment,
+                'valid_to' => $result['closed_on'],
+                'revision' => $result['closed_revision'],
+            ],
+            'new_assignment' => [
+                'id' => $nextId,
+                'employee_id' => $employee,
+                'valid_from' => $data['valid_from'],
+                'valid_to' => $data['valid_to'] ?? null,
+                'revision' => 1,
+            ],
+        ]], 201);
     }
 
     private function rules(): array
