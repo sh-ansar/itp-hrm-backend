@@ -11,7 +11,7 @@ Route::prefix('v1')->group(function (): void {
         'service' => 'itp-hrm-api',
     ]));
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/me', static function (Request $request) {
             $user = $request->user();
 
@@ -24,7 +24,6 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
             ->whereUuid('company');
 
-        // Disabled by default through config/hrm.php.
         Route::put('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'upsert'])
             ->whereUuid('company')
             ->whereNumber('member');

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsureBrowserSessionEnabled;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->alias([
             'hrm.browser-login' => EnsureBrowserSessionEnabled::class,
+            'hrm.active-account' => EnsureActiveAccount::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

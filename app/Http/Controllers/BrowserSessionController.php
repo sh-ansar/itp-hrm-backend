@@ -47,6 +47,7 @@ final class BrowserSessionController extends Controller
         if (!Auth::guard('web')->attempt([
             'email' => $email,
             'password' => $validated['password'],
+            'account_status' => \App\Domain\Identity\AccountState::Active->value,
         ], false)) {
             RateLimiter::hit($principalKey, self::DECAY_SECONDS);
             RateLimiter::hit($ipKey, self::DECAY_SECONDS);
