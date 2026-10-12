@@ -74,7 +74,8 @@ final class EmployeeShowController extends Controller
             'reserve' => $reserve,
             'training' => $training,
             'meta' => ['assignments_limit' => 100, 'assignments_truncated' => $history->count() === 100,
-                'extended_sections_visible' => $extended],
+                'extended_sections_visible' => $extended,
+                'profile_writes_enabled' => $extended && (bool) config('hrm.personnel_writes_enabled', false)],
         ]);
     }
 }
