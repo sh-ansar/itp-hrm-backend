@@ -37,6 +37,7 @@ final class EmployeeVisibility
                 'employees.last_name',
                 'employees.first_name',
                 'employees.middle_name',
+                'employees.revision',
             ])
             ->where('employees.company_id', $companyId);
 
