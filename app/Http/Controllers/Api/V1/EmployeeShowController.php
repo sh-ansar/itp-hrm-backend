@@ -53,13 +53,13 @@ final class EmployeeShowController extends Controller
         $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
         // A manager may view the basic card but not protected personnel development history.
         $experience = $extended ? DB::table('employee_experience')->where('employee_id', $employee)
-            ->select('id','experience_type','started_on','ended_on','basis_reference')
+            ->select('id','experience_type','started_on','ended_on','basis_reference','revision')
             ->orderByDesc('started_on')->limit(100)->get() : collect();
         $reserve = $extended ? DB::table('employee_reserve')->where('employee_id', $employee)
-            ->select('id','target_position','reserve_level','reserve_type','joined_year','left_year','notes')
+            ->select('id','target_position','reserve_level','reserve_type','joined_year','left_year','notes','revision')
             ->orderByDesc('joined_year')->limit(100)->get() : collect();
         $training = $extended ? DB::table('employee_training')->where('employee_id', $employee)
-            ->select('id','training_type','training_mode','topic','provider','city','started_on','ended_on','document_reference')
+            ->select('id','training_type','training_mode','topic','provider','city','started_on','ended_on','document_reference','revision')
             ->orderByDesc('started_on')->limit(100)->get() : collect();
 
         $audit->record($request->user(), $company, HrAuditAction::EmployeesListed, null, [
