@@ -91,6 +91,7 @@ final class EmployeeShowController extends Controller
                 'extended_sections_visible' => $extended,
                 'profile_writes_enabled' => $personnelWritesEnabled,
                 'assignment_writes_enabled' => $personnelWritesEnabled,
+                'employee_writes_enabled' => $personnelWritesEnabled,
             ],
         ]);
     }

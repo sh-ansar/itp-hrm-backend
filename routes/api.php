@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CompanyIndexController;
 use App\Http\Controllers\Api\V1\DepartmentIndexController;
 use App\Http\Controllers\Api\V1\EmployeeAssignmentController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
+use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
@@ -34,7 +35,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
             ->whereUuid('company');
 
+        Route::post('/companies/{company}/employees', [EmployeeRecordController::class, 'store'])
+            ->whereUuid('company');
+
         Route::get('/companies/{company}/employees/{employee}', EmployeeShowController::class)
+            ->whereUuid('company')->whereUuid('employee');
+
+        Route::put('/companies/{company}/employees/{employee}', [EmployeeRecordController::class, 'update'])
             ->whereUuid('company')->whereUuid('employee');
 
         Route::post('/companies/{company}/employees/{employee}/assignments', [EmployeeAssignmentController::class, 'store'])
