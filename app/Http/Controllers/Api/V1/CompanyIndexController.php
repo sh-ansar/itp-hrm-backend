@@ -21,7 +21,7 @@ final class CompanyIndexController extends Controller
             ->join('company_user_roles as r', 'r.company_id', '=', 'c.id')
             ->where('r.user_id', $request->user()->getAuthIdentifier())
             ->whereIn('r.role_code', ['company_admin', 'hr_specialist', 'department_manager'])
-            ->select('c.id')
+            ->select('c.id', 'c.name')
             ->orderBy('c.id')
             ->paginate((int) ($validated['per_page'] ?? 25));
 

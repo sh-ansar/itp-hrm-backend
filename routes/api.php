@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\CompanyMembershipController;
 use App\Http\Controllers\Api\V1\CompanyIndexController;
+use App\Http\Controllers\Api\V1\DepartmentIndexController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
+        Route::get('/companies/{company}/departments', DepartmentIndexController::class)->whereUuid('company');
 
         Route::get('/me', static function (Request $request) {
             $user = $request->user();
