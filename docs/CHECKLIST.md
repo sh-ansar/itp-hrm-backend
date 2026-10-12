@@ -38,6 +38,7 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 ## B — First connected business scenario
 - [x] A11c Synthetic Chromium responsive regression for shared field, scrollable table and dialog at 375/768/1440px, frontend PR #13 merge `e5b3841`, build CI 38214256172 and Chromium CI 38214256220 green. Full visual parity and module integration remain OPEN.
 - [ ] B01 Company hierarchy CRUD + validation + company isolation.
+- [x] B01/B02 read-only organizational directory: company names and scoped department listing, backend PR #25 merge `4b5b1f3`, SQLite/PostgreSQL run 38215514386; Vue organization screen frontend PR #14 merge `d3bccaa`, build 38215669698 and Chromium 38215669655; real API browser isolation frontend PR #15 merge `8c5fdfa`, build 38215850855 and Chromium 38215850860. B01/B02 overall remain OPEN: privileged writes, full hierarchy, cycle prevention and visual acceptance pending.
 - [ ] B02 Departments tree and cycle prevention.
 - [ ] B03 Positions/staffing versions and approved state.
 - [ ] B04 Full employee register, unique personnel number and authorization (create/update/delete and audit not implemented).
