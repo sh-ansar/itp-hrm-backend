@@ -19,7 +19,7 @@ final class EnsureActiveAccount
             ? null
             : User::query()->whereKey($authenticated->getAuthIdentifier())->value('account_status');
 
-        if ($freshState === AccountState::Active->value) {
+        if ($freshState === AccountState::Active) {
             return $next($request);
         }
 
