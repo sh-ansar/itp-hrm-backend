@@ -46,6 +46,7 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [x] PERSONNEL-read Read-only company-scoped employee register replaces frontend placeholder: frontend PR #17 merge `940dad5`, build run 38218824098 and Chromium run 38218824303 green. Backend company-scoped employee list was already implemented; full employee cards, edit actions and dedicated browser isolation test remain OPEN.
 - [ ] B02 Departments tree and cycle prevention.
 - [ ] B03 Positions/staffing versions and approved state.
+- [x] B04b Minimal employee profile + bounded assignment history API with company isolation, manager scope, synchronous read audit, backed by SQLite/PostgreSQL: backend PR #31 merge `ade1c57`, CI 38226100500 green. Frontend PR #21 merged `41f2feb`: build CI 38226467005 and real API Chromium CI 38226466961 both green (profile, assignment, mobile, cross-company denial). Full B04 and B05 remain OPEN.
 - [ ] B04 Full employee register, unique personnel number and authorization (create/update/delete and audit not implemented).
 - [x] B04a Read-only minimal employee list with authorized company/department scopes and bounded pagination (PR #2, run 37949311877).
 - [ ] B05 Effective-dated assignment + overlap/conflict restrictions.
