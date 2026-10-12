@@ -1,6 +1,8 @@
 # Implementation checklist — source of truth
 Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed separately; commit alone is not proof CI passed. Sync frontend progress with backend master checklist. Every change references FR/NFR in SPEC.md.
 
+- [x] SPEC-PRES-01 Source presentation gap audit and synthetic Ansar demo expansion: `docs/PRESENTATION-FORMS-GAP.md`; 80 synthetic employees, 10 departments, 13 positions, 80 assignments. UI form parity and stack approval remain OPEN.
+
 ## A — Foundation
 - [x] A01 Separate repositories and local folder `C:\dev\itp-hrm`. Evidence: frontend `25ea4b8`, backend `caf20fa`.
 - [x] A02 Initial Vue shell and successful local Vite build. Evidence: local build verified 2026-10-09.
