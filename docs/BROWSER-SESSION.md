@@ -1,6 +1,6 @@
 # A09 browser authentication — same-origin contract
 
-**Status:** tested server-side implementation only; **disabled by default**. No production domain, trusted proxy policy or source of user accounts has been approved.
+**Status:** server-side and isolated Chromium browser CI tested; **disabled by default**. No production domain, trusted proxy policy or source of user accounts has been approved.
 
 ## Endpoints
 - `GET /sanctum/csrf-cookie` initializes the first-party CSRF cookie.
@@ -33,7 +33,7 @@ Set `SANCTUM_STATEFUL_DOMAINS=localhost:5173` on the backend and `VITE_API_BASE_
 ## Remaining acceptance gates (A09)
 - Final domain/origin and HTTPS termination architecture, trusted proxy and Secure cookie verification.
 - Real account provisioning and deprovisioning, reset/recovery policy, inactive-account handling, optional SSO/MFA.
-- Browser-based end-to-end tests: CSRF-cookie delivery/rotation, login, page refresh, API session, logout, 419 and 429, expired session, cross-origin denial.
+- Browser CI covers CSRF-cookie, login/session rotation, page refresh, Sanctum session, logout, 419, 429 and cross-origin CORS denial (frontend PR #3, 5/5 Chromium tests, run 38206484870). Tests are pinned to backend commit `0c1cdb18`, using disposable SQLite and synthetic user. **Remaining:** repeat on approved HTTPS staging with Secure cookie and trusted proxy; test time-based expiry/long-lived revocation and update backend SHA pin whenever contract changes.
 - Session expiration across browser restarts, CSRF behavior under load/retries, protection against credential stuffing in a multi-instance cache (use Redis with appropriate shared limits).
 - Security assessment before the `HRM_BROWSER_LOGIN_ENABLED` flag can be enabled.
 - Do not mark complete A09 until all listed gates are reviewed and tested. See Issue #7.
