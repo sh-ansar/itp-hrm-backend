@@ -11,7 +11,7 @@ final class EmployeeShowTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function seed(string $role = 'hr_specialist'): array
+    private function provisionFixture(string $role = 'hr_specialist'): array
     {
         $company=(string) Str::uuid();
         $other=(string) Str::uuid();
@@ -41,7 +41,7 @@ final class EmployeeShowTest extends TestCase
 
     public function test_detail_is_private_and_has_bounded_history(): void
     {
-        extract($this->seed());
+        extract($this->provisionFixture());
         $url="/api/v1/companies/{$company}/employees/{$employee}";
         $this->getJson($url)->assertUnauthorized();
         $this->actingAs($user)->getJson($url)->assertOk()
@@ -55,7 +55,7 @@ final class EmployeeShowTest extends TestCase
 
     public function test_department_manager_history_does_not_reveal_other_department(): void
     {
-        extract($this->seed('department_manager'));
+        extract($this->provisionFixture('department_manager'));
         $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees/{$employee}")
             ->assertOk()->assertJsonCount(1,'assignments')
             ->assertJsonPath('assignments.0.department_name','Accessible department')
@@ -64,7 +64,7 @@ final class EmployeeShowTest extends TestCase
 
     public function test_employee_role_is_denied(): void
     {
-        extract($this->seed('employee'));
+        extract($this->provisionFixture('employee'));
         $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees/{$employee}")->assertForbidden();
     }
 }
