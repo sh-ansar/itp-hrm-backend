@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Domain\Audit\HrAuditWriter;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -79,8 +78,14 @@ final class EmployeeProfileUpdateTest extends TestCase
         extract($this->provisionFixture());
         $path = "/api/v1/companies/{$company}/employees/{$employee}/profile/training/{$ids['training']}";
         $this->actingAs($user)->putJson($path, $this->trainingPayload())->assertNotFound();
+        $this->assertDatabaseHas('employee_training', ['id' => $ids['training'], 'revision' => 1]);
+    }
+
+    public function test_guest_denied_even_when_writes_flag_is_enabled(): void
+    {
+        extract($this->provisionFixture());
         config()->set('hrm.personnel_writes_enabled', true);
-        auth('web')->logout();
+        $path = "/api/v1/companies/{$company}/employees/{$employee}/profile/training/{$ids['training']}";
         $this->putJson($path, $this->trainingPayload())->assertUnauthorized();
         $this->assertDatabaseHas('employee_training', ['id' => $ids['training'], 'revision' => 1]);
     }
@@ -175,9 +180,14 @@ final class EmployeeProfileUpdateTest extends TestCase
     {
         extract($this->provisionFixture());
         config()->set('hrm.personnel_writes_enabled', true);
-        $spy = \Mockery::mock(HrAuditWriter::class);
-        $spy->shouldReceive('record')->once()->andThrow(new \RuntimeException('Synthetic audit failure'));
-        $this->app->instance(HrAuditWriter::class, $spy);
+        // A DB-level UNIQUE restriction makes the audit insert fail in both engines,
+        // ensuring the record mutation is rolled back with the audit event.
+        DB::statement('CREATE UNIQUE INDEX test_fail_profile_audit ON hr_audit_events (company_id, action)');
+        DB::table('hr_audit_events')->insert([
+            'company_id' => $company, 'actor_user_id' => $user->id,
+            'action' => 'personnel.profile_record_updated',
+            'context' => '{}', 'created_at' => now(),
+        ]);
         $path = "/api/v1/companies/{$company}/employees/{$employee}/profile/training/{$ids['training']}";
         $this->actingAs($user)->putJson($path, $this->trainingPayload())->assertStatus(500);
         $this->assertDatabaseHas('employee_training', ['id' => $ids['training'], 'revision' => 1, 'topic' => 'Original topic']);
