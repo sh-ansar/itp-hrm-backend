@@ -23,6 +23,8 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [x] A09c1 Ephemeral Chromium integration for Vue + Laravel + Sanctum, same-origin proxy: 5 browser tests passed (guest guard, login/session rotation and refresh, API auth, CSRF 419, logout/revocation, credential error/429, CORS denial). Frontend PR #3 merged, commit `947030d`, run `38206484870`; backend pinned at `0c1cdb18`. **Not** staging/prod verification.
 - [x] A10 Ephemeral PostgreSQL 16 service in GitHub Actions; core + access migrations and integration tests green without warnings, run 37949311877. This does NOT provision a persistent database.
 - [ ] A11 Reusable UI tables, forms, dialogs, feedback and accessibility tests.
+- [x] A11a Shared accessible BaseNotice and responsive pending-module BaseEmptyState, frontend PRs #5/#6, merges `18ef12e` / `2b499cb`; frontend build runs 38211222432 / 38211460465 and Chromium session runs 38211222383 / 38211460462 green. Overall A11 remains open.
+- [ ] A11b Shared loading/table/form/dialog primitives plus focused accessibility and interaction tests.
 - [ ] A12 Structured error handling / API response contract and tests.
 - [x] A12a JSON error boundary regression tests (401/403/404/422), PR #14, merge `3a23b39`, SQLite/PostgreSQL CI run 38208205522.
 - [x] A12b Server-generated X-Request-ID for API requests, ignores untrusted client header; PR #15, merge `77763b5`, SQLite/PostgreSQL CI run 38208910888.
