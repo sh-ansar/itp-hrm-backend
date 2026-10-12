@@ -42,6 +42,8 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 
 - [x] B04d Gated, audited create-only API for employee experience/reserve/training: PR #39 merged `52b2255`, SQLite+PostgreSQL CI run 38244533433 green; Ansar local 2 tests/10 assertions green. `HRM_PERSONNEL_WRITES_ENABLED` remains default false (404); company-specific HR-role access, validated fields, transaction-coupled audit. No edit/delete UI, no production flag activation; full CRUD and approval matrix OPEN.
 
+- [x] B04e Secure server-authorized record creation UI (without enabling writes): backend PR #41 merged `cbd8f39` (SQLite/PostgreSQL CI 38245519482 green), frontend PR #24 merged `2877938` (build CI 38246019894 and authenticated Chromium CI 38246019678 green). Reusable responsive experience, reserve, training create form validates mandatory values and dates; form only renders on server `profile_writes_enabled`, which is false by default. Ansar backend local 1 test/13 assertions green. No role approval, edit/delete, or live write flag activation; full CRUD OPEN.
+
 ## B — First connected business scenario
 - [x] A11c Synthetic Chromium responsive regression for shared field, scrollable table and dialog at 375/768/1440px, frontend PR #13 merge `e5b3841`, build CI 38214256172 and Chromium CI 38214256220 green. Full visual parity and module integration remain OPEN.
 - [ ] A11d BNT reusable directory controls: frontend PR #18 adds BasePageHeading, BaseSelectField, BasePagination and semantic Golos font tokens, removing duplicated directory layout in both modules. Frontend PR #18 merged as `8c5f1a3`, build CI 38220494860 and Chromium CI 38220494923 both green. Keep open until Chromium and visual parity checks pass.
