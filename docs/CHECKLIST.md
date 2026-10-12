@@ -36,6 +36,7 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A12e Centralized exception sanitization, correlation in safe diagnostics and full API/browser regression. A12 overall remains OPEN.
 
 ## B — First connected business scenario
+- [x] A11c Synthetic Chromium responsive regression for shared field, scrollable table and dialog at 375/768/1440px, frontend PR #13 merge `e5b3841`, build CI 38214256172 and Chromium CI 38214256220 green. Full visual parity and module integration remain OPEN.
 - [ ] B01 Company hierarchy CRUD + validation + company isolation.
 - [ ] B02 Departments tree and cycle prevention.
 - [ ] B03 Positions/staffing versions and approved state.
