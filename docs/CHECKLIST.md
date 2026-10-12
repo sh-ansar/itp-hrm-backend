@@ -17,7 +17,8 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A09 Complete browser login/session with approved origin/TLS/CSRF topology and end-to-end integration (feature currently default-OFF).
 - [x] A09a Default-OFF Laravel web login/logout/current-user endpoints, Sanctum stateful middleware, CSRF integration tests, 2-level login throttle and strict same-origin CORS. SQLite 62 tests/224 assertions, PostgreSQL 16 62 tests/223 assertions, no warnings; PR #8 run 38120806247.
 - [ ] A09b Approved production origin, trusted reverse proxies, HTTPS cookie configuration, controlled account provisioning and session expiry/rotation E2E checks.
-- [ ] A09c Vue login/client integration and browser E2E tests across frontend/backend in staging.
+- [ ] A09c Vue login/client integration and browser E2E tests across frontend/backend on **approved HTTPS staging**; hostname/trusted proxy not yet selected.
+- [x] A09c1 Ephemeral Chromium integration for Vue + Laravel + Sanctum, same-origin proxy: 5 browser tests passed (guest guard, login/session rotation and refresh, API auth, CSRF 419, logout/revocation, credential error/429, CORS denial). Frontend PR #3 merged, commit `947030d`, run `38206484870`; backend pinned at `0c1cdb18`. **Not** staging/prod verification.
 - [x] A10 Ephemeral PostgreSQL 16 service in GitHub Actions; core + access migrations and integration tests green without warnings, run 37949311877. This does NOT provision a persistent database.
 - [ ] A11 Reusable UI tables, forms, dialogs, feedback and accessibility tests.
 - [ ] A12 Structured error handling / API response contract and tests.
