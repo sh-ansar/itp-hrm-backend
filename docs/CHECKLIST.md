@@ -26,7 +26,9 @@ Check `[x]` ONLY when acceptance evidence exists. CI status must be confirmed se
 - [ ] A12 Structured error handling / API response contract and tests.
 - [x] A12a JSON error boundary regression tests (401/403/404/422), PR #14, merge `3a23b39`, SQLite/PostgreSQL CI run 38208205522.
 - [x] A12b Server-generated X-Request-ID for API requests, ignores untrusted client header; PR #15, merge `77763b5`, SQLite/PostgreSQL CI run 38208910888.
-- [ ] A12c Stable typed error codes, safe exception mapping and frontend handling.
+- [x] A12c1 Additive typed JSON API error codes, PR #17 merge `0388718`, SQLite/PostgreSQL CI run 38210037402. This does not cover all exception paths.
+- [x] A12d Vue API error metadata (typed code + request ID), frontend PR #4 merge `0e4c896`, build CI run 38210335626 and Chromium E2E run 38210335704.
+- [ ] A12e Centralized exception sanitization, correlation in safe diagnostics and full API/browser regression. A12 overall remains OPEN.
 
 ## B — First connected business scenario
 - [ ] B01 Company hierarchy CRUD + validation + company isolation.
