@@ -115,9 +115,9 @@ final class EmployeeRegisterProjectionTest extends TestCase
 
         $event = DB::table('hr_audit_events')->where('action', 'personnel.employees_listed')->latest('id')->first();
         $this->assertNotNull($event);
-        $metadata = json_decode((string) $event->metadata_json, true, flags: JSON_THROW_ON_ERROR);
-        $this->assertTrue($metadata['search_applied']);
-        $this->assertArrayNotHasKey('search', $metadata);
-        $this->assertStringNotContainsString('beta', strtolower((string) $event->metadata_json));
+        $context = json_decode((string) $event->context, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertTrue($context['search_applied']);
+        $this->assertArrayNotHasKey('search', $context);
+        $this->assertStringNotContainsString('beta', strtolower((string) $event->context));
     }
 }
