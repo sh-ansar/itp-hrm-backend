@@ -18,3 +18,7 @@ Foundation and read-only company-scoped employee listing are implemented. Prelim
 See [SPEC](docs/SPEC.md), [checklist](docs/CHECKLIST.md), [access model](docs/ACCESS-MODEL.md), [security](docs/SECURITY.md) and [development workflow](AGENTS.md).
 
 No real employee data or credentials belong in this repository.
+
+## Employee photos
+
+Photos use the existing personnel write gate (off by default) and HR/company-admin scope. Only JPEG/PNG up to 5 MiB are accepted, with a 4096 px / 8 megapixel bound. Images are decoded, EXIF orientation is normalized, and stored as private JPEGs up to 1024 px. Original EXIF, names and uploaded bytes are discarded. The authenticated photo response is private/no-store; list/detail payloads never reveal storage paths. Replacement/removal increment the employee revision and write immutable audit events. PHP requires GD and EXIF; deployment upload_max_filesize must allow 5M and post_max_size at least 6M. The local/public storage link does not expose the private photo directory.

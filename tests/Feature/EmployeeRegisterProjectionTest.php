@@ -73,8 +73,19 @@ final class EmployeeRegisterProjectionTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $employee)
             ->assertJsonPath('data.0.current_department_name', 'Projects')
+            ->assertJsonPath('data.0.current_department_id', $departmentB)
+            ->assertJsonPath('data.0.current_position_id', $positionB)
             ->assertJsonPath('data.0.current_position_name', 'Lead engineer')
             ->assertJsonPath('meta.total', 1);
+        DB::table('company_user_roles')->where('company_id',$company)->where('user_id',$user->id)->update(['role_code'=>'department_manager']);
+        DB::table('department_access_scopes')->insert(['company_id'=>$company,'user_id'=>$user->id,'department_id'=>$departmentA]);
+        $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees")
+            ->assertOk()->assertJsonCount(1,'data')
+            ->assertJsonPath('data.0.current_department_id',$departmentA)
+            ->assertJsonPath('data.0.current_position_id',$positionA)
+            ->assertJsonPath('data.0.current_department_name','Finance')
+            ->assertJsonMissingPath('data.0.birth_date')->assertJsonMissingPath('data.0.gender');
+
     }
 
     public function test_register_searches_personnel_number_and_name_without_copying_term_to_audit(): void

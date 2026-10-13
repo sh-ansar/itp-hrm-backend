@@ -60,3 +60,12 @@ Next steps: agree staging HTTPS origin and trusted proxy; run browser E2E agains
 - [x] Create requests reject unknown fields, including attempted company reassignment.
 - [x] Local full SQLite/PHPUnit: 173 tests, 857 assertions passed under PHP 8.5.11; two existing PDO MySQL constant deprecations in framework database config. PHP 8.4/PostgreSQL CI and Chromium persistence/history are checked on the paired PRs before merge.
 - Next: protected photo storage/upload and approved sensitive field contracts (identity documents, IIN, bank data); staging/DB isolation remains a separate gate.
+
+## Employee photos and prototype parity — 14 October 2026
+- [x] Private employee JPEG/PNG upload, replacement, authenticated reading and removal; all mutations reuse the personnel write gate, company/HR scope, revision checks and atomic audit.
+- [x] Decode and normalize images to JPEG up to 1024 px, stripping metadata and trailing data; JPEG EXIF orientation is honored. Inputs are limited to 5 MiB, 4096 px and 8 megapixels.
+- [x] Files are private. No original filename, physical path or EXIF metadata is projected into employee responses.
+- [x] Employee chart joins use scoped assignment IDs; managers cannot project a latest overlapping assignment from an out-of-scope department. Birth date/gender appear only in HR/admin registers.
+- [x] Browser photo upload/reload/replacement/rejection/removal passed on isolated SQLite; backend tests cover role/company/revision, invalid files, normalization and audit rollback cleanup.
+- Full validation results and exact reference coverage are recorded on the paired PRs before merge. Real staging login/write gates remain unchanged.
+- Next: sensitive IIN/identity/banking contracts; staffing approval/version comparison and payroll rules remain independent domain work.
