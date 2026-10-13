@@ -30,7 +30,7 @@ After verifying the dedicated PostgreSQL instance is available, the application 
 $env:PHPRC = 'C:\dev\itp-hrm\backend\php.local.ini'
 cd C:\dev\itp-hrm\backend
 php artisan migrate --force
-php artisan db:seed --class=Database\\Seeders\\DemoPersonnelDocumentsSeeder
+php artisan db:seed --class=Database\Seeders\DemoPersonnelDocumentsSeeder
 ```
 
 The optional seeder refuses any connection whose database is not exactly `itp_hrm_demo` or whose application environment is not `local`. It inserts 12 idempotent, explicitly synthetic document metadata drafts, **without files, employee PII, or signatures**. It is not invoked from the default seeder. For local preview of draft creation and private PDF upload, set `HRM_DOCUMENT_WRITES_ENABLED=true` in the ignored local backend `.env`; leave this flag off in production until formal release approval.
