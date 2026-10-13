@@ -45,10 +45,18 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 - [x] Local migrations 000006 and 000007 applied; new API integration test passed (8 assertions).
 - [x] Frontend TypeScript/Vite build passed; decorative kicker labels removed from six sections.
 - [ ] Profile photo storage/upload, related organization lookups (site, team, supervisor IDs), pixel comparison with ZIP reference and browser E2E.
-- [ ] Resolve four pre-existing full PHPUnit suite failures; do not mark full employee-card module DONE before security/integration validation.
+- [ ] Validate the full PHPUnit suite and browser integration against the current backend before marking the employee-card module DONE.
 
 ## Definition of done
 Migration + authorized API + validation + history + tests + error/loading/empty UI states + docs + git SHA. For business features, passing only skeleton tests does NOT count as done.
 
 ## Next action
 Next steps: agree staging HTTPS origin and trusted proxy; run browser E2E against that approved domain and design controlled account provisioning/deprovisioning. CI already validates isolated browser login but not real deployment. Keep both login and role-management flags OFF. Then implement authorized employee mutations and denied/export audit coverage. DB-level ordinary DML protection is implemented; immutable external archive, retention and non-owner runtime DB roles remain open. The role-grant API stays disabled by default. Establish a persistent dedicated PostgreSQL DB only after confirming isolation. Continue GitHub-only branches/PRs.
+
+## Employee card persistence and history (2026-10-13)
+- [x] Core personal/contact/workplace fields are wired into the real frontend form, with shared controls and grouped drawer sections.
+- [x] Legacy employee edits preserve omitted optional fields; explicit null clears only the requested field. Revision conflicts and transactional audit remain enforced.
+- [x] Employee history projects the latest 100 immutable events for the selected company/employee to HR/company administrators only; raw audit context and personal values are excluded.
+- [x] Create requests reject unknown fields, including attempted company reassignment.
+- [x] Local full SQLite/PHPUnit: 173 tests, 857 assertions passed under PHP 8.5.11; two existing PDO MySQL constant deprecations in framework database config. PHP 8.4/PostgreSQL CI and Chromium persistence/history are checked on the paired PRs before merge.
+- Next: protected photo storage/upload and approved sensitive field contracts (identity documents, IIN, bank data); staging/DB isolation remains a separate gate.

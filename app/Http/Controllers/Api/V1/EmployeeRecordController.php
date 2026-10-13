@@ -23,7 +23,9 @@ final class EmployeeRecordController extends Controller
     ): JsonResponse {
         $this->authorizeCompanyWrite($request, $company);
 
-        $data = $request->validate($this->rules($company));
+        $rules = $this->rules($company);
+        $this->rejectUnexpectedFields($request, array_keys($rules));
+        $data = $request->validate($rules);
         $id = (string) Str::uuid();
 
         try {
@@ -31,19 +33,7 @@ final class EmployeeRecordController extends Controller
                 DB::table('employees')->insert([
                     'id' => $id,
                     'company_id' => $company,
-                    'personnel_number' => $data['personnel_number'],
-                    'last_name' => $data['last_name'],
-                    'first_name' => $data['first_name'],
-                    'middle_name' => $data['middle_name'] ?? null,
-                    'birth_date' => $data['birth_date'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'work_site' => $data['work_site'] ?? null,
-                    'work_zone' => $data['work_zone'] ?? null,
-                    'work_team' => $data['work_team'] ?? null,
-                    'supervisor_name' => $data['supervisor_name'] ?? null,
+                    ...$this->employeeFields($data),
                     'revision' => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -60,19 +50,7 @@ final class EmployeeRecordController extends Controller
 
         return response()->json(['data' => [
             'id' => $id,
-            'personnel_number' => $data['personnel_number'],
-            'last_name' => $data['last_name'],
-            'first_name' => $data['first_name'],
-            'middle_name' => $data['middle_name'] ?? null,
-                    'birth_date' => $data['birth_date'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'work_site' => $data['work_site'] ?? null,
-                    'work_zone' => $data['work_zone'] ?? null,
-                    'work_team' => $data['work_team'] ?? null,
-                    'supervisor_name' => $data['supervisor_name'] ?? null,
+            ...$this->employeeFields($data),
             'revision' => 1,
         ]], 201);
     }
@@ -90,9 +68,7 @@ final class EmployeeRecordController extends Controller
             ->firstOrFail();
 
         $rules = $this->rules($company, $employee);
-        if (array_diff(array_keys($request->all()), array_merge(array_keys($rules), ['revision'])) !== []) {
-            throw ValidationException::withMessages(['employee' => 'Unexpected employee fields.']);
-        }
+        $this->rejectUnexpectedFields($request, array_merge(array_keys($rules), ['revision']));
 
         $data = $request->validate(array_merge($rules, [
             'revision' => ['required', 'integer', 'min:1', 'max:2147483646'],
@@ -101,43 +77,35 @@ final class EmployeeRecordController extends Controller
         unset($data['revision']);
 
         try {
-            $nextRevision = DB::transaction(function () use (
+            $saved = DB::transaction(function () use (
                 $request,
                 $company,
                 $employee,
                 $data,
                 $expectedRevision,
                 $audit,
-            ): int {
+            ): array {
                 $current = DB::table('employees')
                     ->where('id', $employee)
                     ->where('company_id', $company)
                     ->lockForUpdate()
-                    ->first(['revision']);
+                    ->first();
                 abort_if($current === null, 404);
 
                 if ((int) $current->revision !== $expectedRevision) {
                     abort(409, 'The employee record was changed by another user. Reload before editing.');
                 }
 
+                // Legacy callers may omit optional fields. Only explicit null clears a value.
+                $fields = $this->employeeFields($data, (array) $current);
+                $changedFields = array_keys(array_filter($fields,
+                    fn ($value, $key) => $value !== $current->{$key}, ARRAY_FILTER_USE_BOTH));
                 $updated = DB::table('employees')
                     ->where('id', $employee)
                     ->where('company_id', $company)
                     ->where('revision', $expectedRevision)
                     ->update([
-                        'personnel_number' => $data['personnel_number'],
-                        'last_name' => $data['last_name'],
-                        'first_name' => $data['first_name'],
-                        'middle_name' => $data['middle_name'] ?? null,
-                    'birth_date' => $data['birth_date'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'work_site' => $data['work_site'] ?? null,
-                    'work_zone' => $data['work_zone'] ?? null,
-                    'work_team' => $data['work_team'] ?? null,
-                    'supervisor_name' => $data['supervisor_name'] ?? null,
+                        ...$fields,
                         'revision' => $expectedRevision + 1,
                         'updated_at' => now(),
                     ]);
@@ -149,31 +117,35 @@ final class EmployeeRecordController extends Controller
                 $audit->record($request->user(), $company, HrAuditAction::PersonnelEmployeeUpdated, null, [
                     'employee_id' => $employee,
                     'revision' => $expectedRevision + 1,
+                    'changed_fields' => $changedFields,
                 ]);
 
-                return $expectedRevision + 1;
+                return ['id' => $employee, ...$fields, 'revision' => $expectedRevision + 1];
             });
         } catch (QueryException $e) {
             $this->rethrowUniquePersonnelNumber($e);
         }
 
-        return response()->json(['data' => [
-            'id' => $employee,
-            'personnel_number' => $data['personnel_number'],
-            'last_name' => $data['last_name'],
-            'first_name' => $data['first_name'],
-            'middle_name' => $data['middle_name'] ?? null,
-                    'birth_date' => $data['birth_date'] ?? null,
-                    'gender' => $data['gender'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'work_site' => $data['work_site'] ?? null,
-                    'work_zone' => $data['work_zone'] ?? null,
-                    'work_team' => $data['work_team'] ?? null,
-                    'supervisor_name' => $data['supervisor_name'] ?? null,
-            'revision' => $nextRevision,
-        ]]);
+        return response()->json(['data' => $saved]);
+    }
+
+    private function rejectUnexpectedFields(Request $request, array $allowed): void
+    {
+        if (array_diff(array_keys($request->all()), $allowed) !== []) {
+            throw ValidationException::withMessages(['employee' => 'Unexpected employee fields.']);
+        }
+    }
+
+    private function employeeFields(array $data, array $current = []): array
+    {
+        $fields = [];
+        foreach (['personnel_number', 'last_name', 'first_name', 'middle_name',
+            'birth_date', 'gender', 'email', 'phone', 'address',
+            'work_site', 'work_zone', 'work_team', 'supervisor_name'] as $field) {
+            $fields[$field] = array_key_exists($field, $data) ? $data[$field] : ($current[$field] ?? null);
+        }
+
+        return $fields;
     }
 
     private function rules(string $company, ?string $employee = null): array

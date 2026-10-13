@@ -86,6 +86,26 @@ final class EmployeeShowController extends Controller
             ->select('id','training_type','training_mode','topic','provider','city','started_on','ended_on','document_reference','revision')
             ->orderByDesc('started_on')->limit(100)->get() : collect();
 
+        // Return a safe, bounded projection of immutable events, never their raw context.
+        $changes = collect();
+        if ($extended) {
+            $changes = DB::table('hr_audit_events as events')
+                ->leftJoin('users as actors', 'actors.id', '=', 'events.actor_user_id')
+                ->where('events.company_id', $company)
+                ->where('events.context->employee_id', $employee)
+                ->whereIn('events.action', [
+                    HrAuditAction::PersonnelEmployeeCreated->value,
+                    HrAuditAction::PersonnelEmployeeUpdated->value,
+                    HrAuditAction::PersonnelProfileRecordCreated->value,
+                    HrAuditAction::PersonnelProfileRecordUpdated->value,
+                    HrAuditAction::PersonnelAssignmentCreated->value,
+                    HrAuditAction::PersonnelAssignmentUpdated->value,
+                    HrAuditAction::PersonnelAssignmentTransitioned->value,
+                ])
+                ->orderByDesc('events.id')->limit(101)
+                ->get(['events.id', 'events.action', 'events.created_at', 'actors.name as actor']);
+        }
+
         $audit->record($request->user(), $company, HrAuditAction::EmployeesListed, null, [
             'detail_view' => true,
             'returned_count' => 1,
@@ -97,7 +117,10 @@ final class EmployeeShowController extends Controller
             'experience' => $experience,
             'reserve' => $reserve,
             'training' => $training,
+            'history' => $changes->take(100)->values(),
             'meta' => [
+                'history_limit' => 100,
+                'history_truncated' => $changes->count() > 100,
                 'assignments_limit' => 100,
                 'assignments_truncated' => $history->count() === 100,
                 'extended_sections_visible' => $extended,

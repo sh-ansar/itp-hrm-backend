@@ -40,6 +40,7 @@ final class EmployeeIdentityDetailsTest extends TestCase
         DB::table('company_user_roles')->where('user_id', $user->id)->where('company_id', $company)->update(['role_code' => 'department_manager']);
         DB::table('department_access_scopes')->insert(['user_id' => $user->id, 'company_id' => $company, 'department_id' => $department]);
         $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees/{$employee}")
-            ->assertOk()->assertJsonMissingPath('data.email')->assertJsonMissingPath('data.birth_date');
+            ->assertOk()->assertJsonMissingPath('data.email')->assertJsonMissingPath('data.birth_date')
+            ->assertJsonCount(0, 'history');
     }
 }
