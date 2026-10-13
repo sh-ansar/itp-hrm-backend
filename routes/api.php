@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
+use App\Http\Controllers\Api\V1\PositionRecordController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,12 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/positions', PositionIndexController::class)->whereUuid('company');
+        Route::post('/companies/{company}/positions', [PositionRecordController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/positions/{position}', [PositionRecordController::class, 'update'])
+            ->whereUuid('company')->whereUuid('position');
+        Route::delete('/companies/{company}/positions/{position}', [PositionRecordController::class, 'destroy'])
+            ->whereUuid('company')->whereUuid('position');
         Route::get('/companies/{company}/departments', DepartmentIndexController::class)->whereUuid('company');
         Route::post('/companies/{company}/departments', [DepartmentRecordController::class, 'store'])
             ->whereUuid('company');
