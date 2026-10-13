@@ -36,7 +36,8 @@ final class PersonnelDocumentRegistryTest extends TestCase
                 'document_type' => 'contract', 'title' => 'Local contract', 'status' => 'draft',
                 'storage_disk' => 'private', 'storage_path' => 'classified/path.pdf', 'sha256' => str_repeat('a', 64)],
             ['id' => (string) Str::uuid(), 'company_id' => $other, 'employee_id' => $otherEmployee,
-                'document_type' => 'contract', 'title' => 'Other company contract', 'status' => 'draft'],
+                'document_type' => 'contract', 'title' => 'Other company contract', 'status' => 'draft',
+                'storage_disk' => null, 'storage_path' => null, 'sha256' => null],
         ]);
 
         $response = $this->actingAs($user)->getJson("/api/v1/companies/{$company}/documents?document_type=contract")
