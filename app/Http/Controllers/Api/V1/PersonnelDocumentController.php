@@ -117,8 +117,15 @@ final class PersonnelDocumentController extends Controller
             'd.document_type', 'd.document_number', 'd.title',
             'd.issued_on', 'd.status', 'd.revision', 'd.created_at',
             'e.personnel_number', 'e.first_name', 'e.last_name'
-        )->orderByDesc('d.issued_on')->orderByDesc('d.created_at')->orderBy('d.id')
+        )->selectRaw('CASE WHEN d.storage_path IS NULL THEN 0 ELSE 1 END AS has_file')
+            ->orderByDesc('d.issued_on')->orderByDesc('d.created_at')->orderBy('d.id')
             ->paginate((int) ($filters['per_page'] ?? 25));
+
+        // Boolean attachment availability only; never serialize disk/path/hash metadata.
+        $page->getCollection()->transform(static function (object $row): object {
+            $row->has_file = (bool) $row->has_file;
+            return $row;
+        });
 
         $audit->record($request->user(), $company, HrAuditAction::PersonnelDocumentsListed, null, [
             'returned_count' => count($page->items()),
