@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
 use App\Http\Controllers\Api\V1\PositionRecordController;
 use App\Http\Controllers\Api\V1\PersonnelActionController;
+use App\Http\Controllers\Api\V1\PersonnelDocumentController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,9 @@ Route::prefix('v1')->group(function (): void {
         });
 
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
+            ->whereUuid('company');
+
+        Route::get('/companies/{company}/documents', [PersonnelDocumentController::class, 'index'])
             ->whereUuid('company');
 
         Route::get('/companies/{company}/personnel-actions', [PersonnelActionController::class, 'index'])
