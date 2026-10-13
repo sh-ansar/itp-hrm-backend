@@ -23,4 +23,7 @@ enum HrAuditAction: string
     case DepartmentCreated = 'organization.department_created';
     case DepartmentUpdated = 'organization.department_updated';
     case DepartmentDeleted = 'organization.department_deleted';
+    case PositionCreated = 'organization.position_created';
+    case PositionUpdated = 'organization.position_updated';
+    case PositionDeleted = 'organization.position_deleted';
 }
