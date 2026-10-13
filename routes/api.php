@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
+use App\Http\Controllers\Api\V1\StaffingPlanController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,21 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/positions', PositionIndexController::class)->whereUuid('company');
         Route::get('/companies/{company}/departments', DepartmentIndexController::class)->whereUuid('company');
+
+        Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'store'])
+            ->whereUuid('company');
+        Route::get('/companies/{company}/staffing-plans/{plan}', [StaffingPlanController::class, 'show'])
+            ->whereUuid('company')->whereUuid('plan');
+        Route::put('/companies/{company}/staffing-plans/{plan}', [StaffingPlanController::class, 'update'])
+            ->whereUuid('company')->whereUuid('plan');
+        Route::post('/companies/{company}/staffing-plans/{plan}/lines', [StaffingPlanController::class, 'storeLine'])
+            ->whereUuid('company')->whereUuid('plan');
+        Route::put('/companies/{company}/staffing-plans/{plan}/lines/{line}', [StaffingPlanController::class, 'updateLine'])
+            ->whereUuid('company')->whereUuid('plan')->whereUuid('line');
+        Route::post('/companies/{company}/staffing-plans/{plan}/approve', [StaffingPlanController::class, 'approve'])
+            ->whereUuid('company')->whereUuid('plan');
 
         Route::get('/me', static function (Request $request) {
             $user = $request->user();
