@@ -27,7 +27,7 @@ final class DepartmentIndexController extends Controller
 
         $query = DB::table('departments as d')
             ->where('d.company_id', $company)
-            ->select('d.id', 'd.parent_id', 'd.name');
+            ->select('d.id', 'd.parent_id', 'd.name', 'd.revision');
 
         // Managers may only inspect explicitly assigned departments; no inherited scopes.
         if ($role === 'department_manager') {
@@ -47,6 +47,8 @@ final class DepartmentIndexController extends Controller
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
+                'department_writes_enabled' => in_array($role, ['company_admin', 'hr_specialist'], true)
+                    && (bool) config('hrm.personnel_writes_enabled', false),
             ],
         ]);
     }

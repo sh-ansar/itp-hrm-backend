@@ -20,4 +20,7 @@ enum HrAuditAction: string
     case StaffingPlanLineCreated = 'staffing.plan_line_created';
     case StaffingPlanLineUpdated = 'staffing.plan_line_updated';
     case StaffingPlanApproved = 'staffing.plan_approved';
+    case DepartmentCreated = 'organization.department_created';
+    case DepartmentUpdated = 'organization.department_updated';
+    case DepartmentDeleted = 'organization.department_deleted';
 }

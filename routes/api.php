@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\CompanyMembershipController;
 use App\Http\Controllers\Api\V1\CompanyIndexController;
 use App\Http\Controllers\Api\V1\DepartmentIndexController;
+use App\Http\Controllers\Api\V1\DepartmentRecordController;
 use App\Http\Controllers\Api\V1\EmployeeAssignmentController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
 use App\Http\Controllers\Api\V1\EmployeeRecordController;
@@ -23,6 +24,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/positions', PositionIndexController::class)->whereUuid('company');
         Route::get('/companies/{company}/departments', DepartmentIndexController::class)->whereUuid('company');
+        Route::post('/companies/{company}/departments', [DepartmentRecordController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/departments/{department}', [DepartmentRecordController::class, 'update'])
+            ->whereUuid('company')->whereUuid('department');
+        Route::delete('/companies/{company}/departments/{department}', [DepartmentRecordController::class, 'destroy'])
+            ->whereUuid('company')->whereUuid('department');
 
         Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
             ->whereUuid('company');
