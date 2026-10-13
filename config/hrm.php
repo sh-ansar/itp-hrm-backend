@@ -13,5 +13,8 @@ return [
     // Worktime mutation endpoints are not released in the first read-only contract.
     'worktime_writes_enabled' => (bool) env('HRM_WORKTIME_WRITES_ENABLED', false),
 
+    // Leave mutations are not released with the first read-only leave contract.
+    'leave_writes_enabled' => (bool) env('HRM_LEAVE_WRITES_ENABLED', false),
+
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
 ];
