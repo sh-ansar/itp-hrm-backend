@@ -28,7 +28,7 @@ final class PositionIndexController extends Controller
         ]);
         $page = DB::table('positions')
             ->where('company_id', $company)
-            ->select('id', 'name')
+            ->select('id', 'name', 'revision')
             ->orderBy('name')->orderBy('id')
             ->paginate((int) ($validated['per_page'] ?? 25));
 
@@ -39,6 +39,8 @@ final class PositionIndexController extends Controller
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
+                'position_writes_enabled' => in_array($role, ['company_admin', 'hr_specialist'], true)
+                    && (bool) config('hrm.personnel_writes_enabled', false),
             ],
         ]);
     }
