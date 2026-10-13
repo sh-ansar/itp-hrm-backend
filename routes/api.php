@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\DepartmentIndexController;
 use App\Http\Controllers\Api\V1\DepartmentRecordController;
 use App\Http\Controllers\Api\V1\EmployeeAssignmentController;
 use App\Http\Controllers\Api\V1\EmployeeIndexController;
+use App\Http\Controllers\Api\V1\EmployeeDevelopmentIndexController;
 use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
@@ -67,6 +68,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
             ->whereUuid('company');
+
+        Route::get('/companies/{company}/development/{section}', EmployeeDevelopmentIndexController::class)
+            ->whereUuid('company')->whereIn('section', ['training', 'reserve']);
 
         Route::post('/companies/{company}/documents', [PersonnelDocumentController::class, 'store'])
             ->whereUuid('company');
