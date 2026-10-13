@@ -67,6 +67,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/employees', EmployeeIndexController::class)
             ->whereUuid('company');
 
+        Route::post('/companies/{company}/documents', [PersonnelDocumentController::class, 'store'])
+            ->whereUuid('company');
         Route::get('/companies/{company}/documents', [PersonnelDocumentController::class, 'index'])
             ->whereUuid('company');
 
