@@ -43,7 +43,8 @@ final class PersonnelDocumentRegistryTest extends TestCase
         $response = $this->actingAs($user)->getJson("/api/v1/companies/{$company}/documents?document_type=contract")
             ->assertOk()->assertJsonPath('meta.total', 1)
             ->assertJsonPath('meta.document_writes_enabled', false)
-            ->assertJsonPath('data.0.title', 'Local contract');
+            ->assertJsonPath('data.0.title', 'Local contract')
+            ->assertJsonPath('data.0.has_file', true);
         $response->assertJsonMissing(['storage_path' => 'classified/path.pdf']);
         $this->assertStringNotContainsString('classified/path.pdf', $response->getContent());
         $this->assertStringNotContainsString(str_repeat('a', 64), $response->getContent());
