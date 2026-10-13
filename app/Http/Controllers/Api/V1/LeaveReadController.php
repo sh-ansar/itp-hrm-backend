@@ -62,6 +62,7 @@ final class LeaveReadController extends Controller
 
         $summaryRaw = (clone $base)
             ->selectRaw('COUNT(*) as total')
+            ->selectRaw('COUNT(DISTINCT l.employee_id) as employees')
             ->selectRaw('COALESCE(SUM(COALESCE(l.actual_days, l.planned_days)), 0) as days')
             ->selectRaw(
                 'SUM(CASE
@@ -135,6 +136,7 @@ final class LeaveReadController extends Controller
                 'year' => $year,
                 'summary' => [
                     'total' => $total,
+                    'employees' => (int) ($summaryRaw->employees ?? 0),
                     'days' => (int) ($summaryRaw->days ?? 0),
                     'planned' => max($total - $ongoing - $completed, 0),
                     'ongoing' => $ongoing,
