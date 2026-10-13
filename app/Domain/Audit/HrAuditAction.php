@@ -27,4 +27,5 @@ enum HrAuditAction: string
     case PositionUpdated = 'organization.position_updated';
     case PositionDeleted = 'organization.position_deleted';
     case PersonnelActionCompleted = 'personnel.action_completed';
+    case PersonnelDocumentsListed = 'personnel.documents_listed';
 }
