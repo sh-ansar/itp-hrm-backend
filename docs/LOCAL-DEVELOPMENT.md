@@ -21,3 +21,16 @@ Do not reuse existing databases or modify running PostgreSQL services without in
 ## Data
 
 Do not use real employee data in local seeds. Never publish local `.env`, credentials or HR exports.
+
+## Optional C02 document preview (isolated local database only)
+
+After verifying the dedicated PostgreSQL instance is available, the application is pointed at `itp_hrm_demo`, and the existing synthetic `ITP Demo Enterprise` / `DEMO-*` employees are present:
+
+```powershell
+$env:PHPRC = 'C:\dev\itp-hrm\backend\php.local.ini'
+cd C:\dev\itp-hrm\backend
+php artisan migrate --force
+php artisan db:seed --class=Database\\Seeders\\DemoPersonnelDocumentsSeeder
+```
+
+The optional seeder refuses any connection whose database is not exactly `itp_hrm_demo` or whose application environment is not `local`. It inserts 12 idempotent, explicitly synthetic document metadata drafts, **without files, employee PII, or signatures**. It is not invoked from the default seeder. For local preview of draft creation and private PDF upload, set `HRM_DOCUMENT_WRITES_ENABLED=true` in the ignored local backend `.env`; leave this flag off in production until formal release approval.
