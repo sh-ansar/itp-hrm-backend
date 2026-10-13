@@ -4,6 +4,8 @@
   "description": "ITP HRM Laravel API",
   "require": {
     "php": "^8.4.1",
+    "ext-gd": "*",
+    "ext-exif": "*",
     "laravel/framework": "^12.0",
     "laravel/sanctum": "^4.0",
     "laravel/tinker": "^2.10"

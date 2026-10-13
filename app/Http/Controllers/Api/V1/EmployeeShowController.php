@@ -64,6 +64,8 @@ final class EmployeeShowController extends Controller
         $personnelWritesEnabled = $extended && (bool) config('hrm.personnel_writes_enabled', false);
         // Personal contact data is visible only to HR/company administrators.
         if ($extended) {
+            $row->has_photo = DB::table('employees')->where('company_id', $company)
+                ->where('id', $employee)->whereNotNull('photo_path')->exists();
             $personal = DB::table('employees')->where('id', $employee)
                 ->where('company_id', $company)
                 ->first(['birth_date', 'gender', 'email', 'phone', 'address', 'work_site', 'work_zone', 'work_team', 'supervisor_name']);
@@ -94,6 +96,8 @@ final class EmployeeShowController extends Controller
                 ->where('events.company_id', $company)
                 ->where('events.context->employee_id', $employee)
                 ->whereIn('events.action', [
+                    HrAuditAction::EmployeePhotoUpdated->value,
+                    HrAuditAction::EmployeePhotoRemoved->value,
                     HrAuditAction::PersonnelEmployeeCreated->value,
                     HrAuditAction::PersonnelEmployeeUpdated->value,
                     HrAuditAction::PersonnelProfileRecordCreated->value,

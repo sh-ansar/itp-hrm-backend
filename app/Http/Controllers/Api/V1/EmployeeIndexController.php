@@ -77,10 +77,36 @@ final class EmployeeIndexController extends Controller
             });
         }
 
+        $role = DB::table('company_user_roles')->where('company_id', $company)
+            ->where('user_id', $request->user()->getAuthIdentifier())->value('role_code');
+        if (in_array($role, ['company_admin', 'hr_specialist'], true)) {
+            $query->addSelect('employees.birth_date', 'employees.gender');
+        }
+        $scopedDepartmentIds = $role === 'department_manager'
+            ? DB::table('department_access_scopes')->where('company_id', $company)
+                ->where('user_id', $request->user()->getAuthIdentifier())->pluck('department_id')->all()
+            : null;
+
+        foreach (['department_id' => 'departments', 'position_id' => 'positions'] as $field => $table) {
+            $query->selectSub(function (Builder $sub) use ($today, $company, $field, $table, $scopedDepartmentIds): void {
+                if ($scopedDepartmentIds !== null) $sub->whereIn('current_id_a.department_id', $scopedDepartmentIds);
+                $sub->from('employee_assignments as current_id_a')
+                    ->join($table.' as current_id_ref', 'current_id_ref.id', '=', 'current_id_a.'.$field)
+                    ->select('current_id_a.'.$field)
+                    ->whereColumn('current_id_a.employee_id', 'employees.id')
+                    ->where('current_id_ref.company_id', $company)
+                    ->where('current_id_a.valid_from', '<=', $today)
+                    ->where(function (Builder $dates) use ($today): void {
+                        $dates->whereNull('current_id_a.valid_to')->orWhere('current_id_a.valid_to', '>=', $today);
+                    })->orderByDesc('current_id_a.valid_from')->orderBy('current_id_a.id')->limit(1);
+            }, 'current_'.$field);
+        }
+
         // Current assignment is projected through bounded scalar subqueries instead of
         // a join, so malformed legacy overlap cannot duplicate employees in the register.
         $query
-            ->selectSub(function (Builder $sub) use ($today, $company): void {
+            ->selectSub(function (Builder $sub) use ($today, $company, $scopedDepartmentIds): void {
+                if ($scopedDepartmentIds !== null) $sub->whereIn('current_a.department_id', $scopedDepartmentIds);
                 $sub->from('employee_assignments as current_a')
                     ->join('departments as current_d', 'current_d.id', '=', 'current_a.department_id')
                     ->select('current_d.name')
@@ -94,7 +120,8 @@ final class EmployeeIndexController extends Controller
                     ->orderBy('current_a.id')
                     ->limit(1);
             }, 'current_department_name')
-            ->selectSub(function (Builder $sub) use ($today, $company): void {
+            ->selectSub(function (Builder $sub) use ($today, $company, $scopedDepartmentIds): void {
+                if ($scopedDepartmentIds !== null) $sub->whereIn('current_a.department_id', $scopedDepartmentIds);
                 $sub->from('employee_assignments as current_a')
                     ->join('positions as current_p', 'current_p.id', '=', 'current_a.position_id')
                     ->select('current_p.name')
@@ -108,7 +135,8 @@ final class EmployeeIndexController extends Controller
                     ->orderBy('current_a.id')
                     ->limit(1);
             }, 'current_position_name')
-            ->selectSub(function (Builder $sub) use ($today): void {
+            ->selectSub(function (Builder $sub) use ($today, $scopedDepartmentIds): void {
+                if ($scopedDepartmentIds !== null) $sub->whereIn('current_a.department_id', $scopedDepartmentIds);
                 $sub->from('employee_assignments as current_a')
                     ->select('current_a.valid_from')
                     ->whereColumn('current_a.employee_id', 'employees.id')

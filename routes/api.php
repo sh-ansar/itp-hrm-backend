@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\EmployeeIndexController;
 use App\Http\Controllers\Api\V1\EmployeeDevelopmentIndexController;
 use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
+use App\Http\Controllers\Api\V1\EmployeePhotoController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
 use App\Http\Controllers\Api\V1\PositionRecordController;
@@ -111,6 +112,13 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company');
 
         Route::get('/companies/{company}/employees/{employee}', EmployeeShowController::class)
+            ->whereUuid('company')->whereUuid('employee');
+
+        Route::get('/companies/{company}/employees/{employee}/photo', [EmployeePhotoController::class, 'show'])
+            ->whereUuid('company')->whereUuid('employee');
+        Route::post('/companies/{company}/employees/{employee}/photo', [EmployeePhotoController::class, 'upload'])
+            ->whereUuid('company')->whereUuid('employee');
+        Route::delete('/companies/{company}/employees/{employee}/photo', [EmployeePhotoController::class, 'destroy'])
             ->whereUuid('company')->whereUuid('employee');
 
         Route::put('/companies/{company}/employees/{employee}', [EmployeeRecordController::class, 'update'])

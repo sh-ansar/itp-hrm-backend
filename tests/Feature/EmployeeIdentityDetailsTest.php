@@ -33,6 +33,8 @@ final class EmployeeIdentityDetailsTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees/{$employee}")
             ->assertOk()->assertJsonPath('data.email', 'test@example.org')
             ->assertJsonPath('data.birth_date', '1990-06-01')->assertJsonPath('data.work_site', 'Terminal A');
+        $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees")
+            ->assertOk()->assertJsonPath('data.0.birth_date', '1990-06-01')->assertJsonPath('data.0.gender', 'female');
         DB::table('employee_assignments')->insert([
             'id' => (string) Str::uuid(), 'employee_id' => $employee,
             'department_id' => $department, 'position_id' => $position, 'valid_from' => '2025-01-01',
@@ -42,5 +44,7 @@ final class EmployeeIdentityDetailsTest extends TestCase
         $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees/{$employee}")
             ->assertOk()->assertJsonMissingPath('data.email')->assertJsonMissingPath('data.birth_date')
             ->assertJsonCount(0, 'history');
+        $this->actingAs($user)->getJson("/api/v1/companies/{$company}/employees")
+            ->assertOk()->assertJsonMissingPath('data.0.birth_date')->assertJsonMissingPath('data.0.gender');
     }
 }
