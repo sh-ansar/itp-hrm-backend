@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\PersonnelDocumentFileController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
+use App\Http\Controllers\Api\V1\LeaveReadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +55,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/worktime/calendar', [WorktimeReadController::class, 'calendar'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/absences', [WorktimeReadController::class, 'absences'])
+            ->whereUuid('company');
+
+        Route::get('/companies/{company}/leaves', LeaveReadController::class)
             ->whereUuid('company');
         Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
             ->whereUuid('company');

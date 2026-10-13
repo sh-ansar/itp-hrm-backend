@@ -33,4 +33,5 @@ enum HrAuditAction: string
     case PersonnelDocumentFileDownloaded = 'personnel.document_file_downloaded';
     case PersonnelDocumentsListed = 'personnel.documents_listed';
     case WorktimeRecordsListed = 'worktime.records_listed';
+    case LeaveRecordsListed = 'leave.records_listed';
 }
