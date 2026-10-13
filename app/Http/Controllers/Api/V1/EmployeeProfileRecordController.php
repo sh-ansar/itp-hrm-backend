@@ -36,7 +36,7 @@ final class EmployeeProfileRecordController extends Controller
                 'updated_at' => now(),
             ]));
             $audit->record($request->user(), $company, HrAuditAction::PersonnelProfileRecordCreated, null, [
-                'section' => $section, 'record_id' => $id,
+                'employee_id' => $employee, 'section' => $section, 'record_id' => $id,
             ]);
         });
 
@@ -86,7 +86,7 @@ final class EmployeeProfileRecordController extends Controller
 
             // Both data and its non-sensitive audit event commit together or not at all.
             $audit->record($request->user(), $company, HrAuditAction::PersonnelProfileRecordUpdated, null, [
-                'section' => $section, 'record_id' => $record, 'revision' => $expected + 1,
+                'employee_id' => $employee, 'section' => $section, 'record_id' => $record, 'revision' => $expected + 1,
             ]);
             return $expected + 1;
         });
