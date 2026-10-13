@@ -25,10 +25,46 @@ final class EmployeeIndexController extends Controller
         $validated = $request->validate([
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'status' => ['sometimes', 'in:all,active,planned,archived,unassigned'],
         ]);
 
         $today = now()->toDateString();
         $search = trim((string) ($validated['search'] ?? ''));
+        $status = (string) ($validated['status'] ?? 'all');
+
+        // Apply status to the entire authorized employee scope before pagination.
+        $active = static function (Builder $q) use ($today): void {
+            $q->from('employee_assignments as status_active')
+                ->selectRaw('1')
+                ->whereColumn('status_active.employee_id', 'employees.id')
+                ->where('status_active.valid_from', '<=', $today)
+                ->where(function (Builder $range) use ($today): void {
+                    $range->whereNull('status_active.valid_to')
+                        ->orWhere('status_active.valid_to', '>=', $today);
+                });
+        };
+        $future = static function (Builder $q) use ($today): void {
+            $q->from('employee_assignments as status_future')
+                ->selectRaw('1')
+                ->whereColumn('status_future.employee_id', 'employees.id')
+                ->where('status_future.valid_from', '>', $today);
+        };
+        $past = static function (Builder $q) use ($today): void {
+            $q->from('employee_assignments as status_past')
+                ->selectRaw('1')
+                ->whereColumn('status_past.employee_id', 'employees.id')
+                ->where('status_past.valid_to', '<', $today);
+        };
+
+        if ($status === 'active') {
+            $query->whereExists($active);
+        } elseif ($status === 'planned') {
+            $query->whereNotExists($active)->whereExists($future);
+        } elseif ($status === 'archived') {
+            $query->whereNotExists($active)->whereNotExists($future)->whereExists($past);
+        } elseif ($status === 'unassigned') {
+            $query->whereNotExists($active)->whereNotExists($future)->whereNotExists($past);
+        }
 
         if ($search !== '') {
             $pattern = '%'.$search.'%';
@@ -83,7 +119,21 @@ final class EmployeeIndexController extends Controller
                     ->orderByDesc('current_a.valid_from')
                     ->orderBy('current_a.id')
                     ->limit(1);
-            }, 'current_assignment_valid_from');
+            }, 'current_assignment_valid_from')
+            ->selectRaw(
+                "CASE
+                    WHEN EXISTS (SELECT 1 FROM employee_assignments s
+                        WHERE s.employee_id = employees.id
+                          AND s.valid_from <= ?
+                          AND (s.valid_to IS NULL OR s.valid_to >= ?)) THEN 'active'
+                    WHEN EXISTS (SELECT 1 FROM employee_assignments s
+                        WHERE s.employee_id = employees.id AND s.valid_from > ?) THEN 'planned'
+                    WHEN EXISTS (SELECT 1 FROM employee_assignments s
+                        WHERE s.employee_id = employees.id AND s.valid_to < ?) THEN 'archived'
+                    ELSE 'unassigned'
+                END AS employment_status",
+                [$today, $today, $today, $today]
+            );
 
         $page = $query
             ->orderBy('employees.last_name')
@@ -102,6 +152,7 @@ final class EmployeeIndexController extends Controller
                 'current_page' => $page->currentPage(),
                 'returned_count' => count($page->items()),
                 'search_applied' => $search !== '',
+                'status_filter' => $status,
             ],
         );
 
@@ -113,6 +164,7 @@ final class EmployeeIndexController extends Controller
         return response()->json([
             'data' => $page->items(),
             'meta' => [
+                'status_filter' => $status,
                 'employee_writes_enabled' => in_array($role, ['company_admin', 'hr_specialist'], true)
                     && (bool) config('hrm.personnel_writes_enabled', false),
                 'current_page' => $page->currentPage(),
