@@ -62,6 +62,18 @@ final class EmployeeShowController extends Controller
 
         $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
         $personnelWritesEnabled = $extended && (bool) config('hrm.personnel_writes_enabled', false);
+        // Personal contact data is visible only to HR/company administrators.
+        if ($extended) {
+            $personal = DB::table('employees')->where('id', $employee)
+                ->where('company_id', $company)
+                ->first(['birth_date', 'gender', 'email', 'phone', 'address', 'work_site', 'work_zone', 'work_team', 'supervisor_name']);
+            if ($personal !== null) {
+                foreach (['birth_date', 'gender', 'email', 'phone', 'address', 'work_site', 'work_zone', 'work_team', 'supervisor_name'] as $field) {
+                    $row->{$field} = $personal->{$field};
+                }
+            }
+        }
+
 
         // A manager may view the basic card but not protected personnel development history.
         $experience = $extended ? DB::table('employee_experience')->where('employee_id', $employee)

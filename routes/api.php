@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\PersonnelActionController;
 use App\Http\Controllers\Api\V1\PersonnelDocumentController;
 use App\Http\Controllers\Api\V1\PersonnelDocumentFileController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
+use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,8 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/companies/{company}/departments/{department}', [DepartmentRecordController::class, 'destroy'])
             ->whereUuid('company')->whereUuid('department');
 
+        Route::get('/companies/{company}/staffing-history', StaffingHistoryController::class)
+            ->whereUuid('company');
         Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'store'])

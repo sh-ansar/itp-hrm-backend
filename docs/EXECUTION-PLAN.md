@@ -40,6 +40,13 @@ Updated: 2026-10-09. Source: "Кадры 2026" presentation.
 - [ ] Training, reserve, candidates and reports.
 - [ ] Payroll specification and reconciliation against legacy BSP Wage before calculations.
 
+## Local employee card slice (2026-10-13)
+- [x] Nullable personal/contact and workplace fields, role-scoped detail response, create/update validation and form.
+- [x] Local migrations 000006 and 000007 applied; new API integration test passed (8 assertions).
+- [x] Frontend TypeScript/Vite build passed; decorative kicker labels removed from six sections.
+- [ ] Profile photo storage/upload, related organization lookups (site, team, supervisor IDs), pixel comparison with ZIP reference and browser E2E.
+- [ ] Resolve four pre-existing full PHPUnit suite failures; do not mark full employee-card module DONE before security/integration validation.
+
 ## Definition of done
 Migration + authorized API + validation + history + tests + error/loading/empty UI states + docs + git SHA. For business features, passing only skeleton tests does NOT count as done.
 

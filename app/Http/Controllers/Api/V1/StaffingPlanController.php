@@ -57,6 +57,21 @@ final class StaffingPlanController extends Controller
             ->first(['id', 'name', 'valid_from', 'valid_to', 'status', 'revision']);
         abort_if($header === null, 404);
 
+        // Resolve occupancy for the entire scoped company in one query.
+        // Per-line counting previously caused N+1 queries for large staffing plans.
+        $occupancy = DB::table('employee_assignments as a')
+            ->join('employees as e', 'e.id', '=', 'a.employee_id')
+            ->where('e.company_id', $company)
+            ->where('a.valid_from', '<=', $asOf)
+            ->where(function ($dates) use ($asOf): void {
+                $dates->whereNull('a.valid_to')->orWhere('a.valid_to', '>=', $asOf);
+            })
+            ->select('a.department_id', 'a.position_id')
+            ->selectRaw('COUNT(*) as occupied_count')
+            ->groupBy('a.department_id', 'a.position_id')
+            ->get()
+            ->keyBy(static fn (object $row): string => $row->department_id.'|'.$row->position_id);
+
         $lines = DB::table('staffing_plan_lines as l')
             ->join('departments as d', 'd.id', '=', 'l.department_id')
             ->join('positions as p', 'p.id', '=', 'l.position_id')
@@ -79,17 +94,9 @@ final class StaffingPlanController extends Controller
             ->orderBy('p.name')
             ->orderBy('l.id')
             ->get()
-            ->map(function (object $line) use ($company, $asOf): array {
-                $occupied = DB::table('employee_assignments as a')
-                    ->join('employees as e', 'e.id', '=', 'a.employee_id')
-                    ->where('e.company_id', $company)
-                    ->where('a.department_id', $line->department_id)
-                    ->where('a.position_id', $line->position_id)
-                    ->where('a.valid_from', '<=', $asOf)
-                    ->where(function ($dates) use ($asOf): void {
-                        $dates->whereNull('a.valid_to')->orWhere('a.valid_to', '>=', $asOf);
-                    })
-                    ->count();
+            ->map(function (object $line) use ($occupancy): array {
+                $key = $line->department_id.'|'.$line->position_id;
+                $occupied = (int) ($occupancy->get($key)->occupied_count ?? 0);
 
                 $planned = (float) $line->planned_units;
                 $vacant = max($planned - $occupied, 0);
