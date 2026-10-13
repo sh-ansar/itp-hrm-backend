@@ -117,7 +117,7 @@ final class PersonnelDocumentController extends Controller
             'd.document_type', 'd.document_number', 'd.title',
             'd.issued_on', 'd.status', 'd.revision', 'd.created_at',
             'e.personnel_number', 'e.first_name', 'e.last_name'
-        )->selectRaw('CASE WHEN d.storage_path IS NULL THEN 0 ELSE 1 END AS has_file')
+        )->selectRaw('CASE WHEN d.storage_disk IS NOT NULL AND d.storage_path IS NOT NULL THEN 1 ELSE 0 END AS has_file')
             ->orderByDesc('d.issued_on')->orderByDesc('d.created_at')->orderBy('d.id')
             ->paginate((int) ($filters['per_page'] ?? 25));
 
