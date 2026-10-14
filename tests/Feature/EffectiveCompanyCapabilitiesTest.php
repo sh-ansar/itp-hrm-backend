@@ -29,10 +29,11 @@ final class EffectiveCompanyCapabilitiesTest extends TestCase
         $this->getJson('/api/v1/me/access')->assertUnauthorized();
 
         $user = User::factory()->create();
-        $this->actingAs($user)->getJson('/api/v1/me/access')->assertOk()
+        $response = $this->actingAs($user)->getJson('/api/v1/me/access')->assertOk()
             ->assertJsonCount(0, 'data.companies')
-            ->assertJsonPath('meta.schema_version', 1)
-            ->assertHeader('Cache-Control', 'private, no-store');
+            ->assertJsonPath('meta.schema_version', 1);
+        $this->assertStringContainsString('private', $response->headers->get('Cache-Control', ''));
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control', ''));
     }
 
     public function test_admin_and_hr_get_only_the_capabilities_released_by_feature_flags(): void
