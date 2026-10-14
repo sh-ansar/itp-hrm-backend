@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\CompanyMembershipController;
 use App\Http\Controllers\Api\V1\CompanyIndexController;
+use App\Http\Controllers\Api\V1\CurrentAccessController;
 use App\Http\Controllers\Api\V1\DepartmentIndexController;
 use App\Http\Controllers\Api\V1\DepartmentRecordController;
 use App\Http\Controllers\Api\V1\EmployeeAssignmentController;
@@ -33,6 +34,7 @@ Route::prefix('v1')->group(function (): void {
     ]));
 
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
+        Route::get('/me/access', CurrentAccessController::class);
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/positions', PositionIndexController::class)->whereUuid('company');
         Route::post('/companies/{company}/positions', [PositionRecordController::class, 'store'])
