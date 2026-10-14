@@ -32,7 +32,7 @@ final class LeaveRequestController extends Controller
             ->where('lr.company_id', $company)
             ->select('lr.id', 'lr.employee_id', 'lr.leave_type_id',
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
-                'lr.status', 'lr.revision', 'lr.note', 'lr.published_leave_id',
+                'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
                 'lr.created_by_user_id', 'lt.name as leave_type_name',
                 'e.last_name', 'e.first_name', 'e.middle_name');
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);

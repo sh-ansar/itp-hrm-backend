@@ -26,6 +26,8 @@ return new class extends Migration
             $table->unsignedSmallInteger('planned_days');
             $table->string('status', 24)->default('draft');
             $table->text('note')->nullable();
+            // HR plan rationale and decision notes must never overwrite each other.
+            $table->text('decision_comment')->nullable();
             $table->unsignedInteger('revision')->default(1);
             $table->foreignId('created_by_user_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('decided_by_user_id')->nullable()->constrained('users')->restrictOnDelete();

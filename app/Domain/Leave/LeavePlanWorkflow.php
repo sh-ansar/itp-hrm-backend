@@ -153,7 +153,7 @@ final class LeavePlanWorkflow
                 'revision' => $expected + 1,
                 'decided_by_user_id' => $actor->getAuthIdentifier(),
                 'decided_at' => now(),
-                'note' => $comment !== null ? $comment : $record->note,
+                'decision_comment' => $comment,
                 'published_leave_id' => $publishedLeave,
                 'updated_at' => now(),
             ];
@@ -256,6 +256,7 @@ final class LeavePlanWorkflow
             'status' => $row['status'],
             'revision' => (int) $row['revision'],
             'note' => $row['note'] ?? null,
+            'decision_comment' => $row['decision_comment'] ?? null,
             'published_leave_id' => $row['published_leave_id'] ?? null,
         ];
     }

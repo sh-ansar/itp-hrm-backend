@@ -200,4 +200,26 @@ final class LeaveWorkflowTest extends TestCase
         ])->assertForbidden();
         $this->assertDatabaseCount('employee_leaves', 0);
     }
+
+    public function test_decision_comment_is_not_allowed_to_overwrite_employee_leave_note(): void
+    {
+        extract($this->fixture());
+        $type = $this->leaveType($admin, $company);
+        $base = "/api/v1/companies/{$company}/leave-requests";
+        $request = $this->actingAs($hr)->postJson($base, $this->data($employee, $type, [
+            'note' => 'Original HR plan rationale',
+        ]))->assertCreated()->json('data');
+        $this->actingAs($hr)->postJson($base.'/'.$request['id'].'/submit', [
+            'revision' => 1,
+        ])->assertOk();
+        $this->actingAs($admin)->postJson($base.'/'.$request['id'].'/decision', [
+            'revision' => 2, 'decision' => 'rejected', 'comment' => 'Rework requested',
+        ])->assertOk()->assertJsonPath('data.note', 'Original HR plan rationale')
+            ->assertJsonPath('data.decision_comment', 'Rework requested');
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $request['id'], 'note' => 'Original HR plan rationale',
+            'decision_comment' => 'Rework requested', 'status' => 'rejected',
+        ]);
+    }
 }
+
