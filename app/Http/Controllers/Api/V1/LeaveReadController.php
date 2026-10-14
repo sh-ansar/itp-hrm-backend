@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Worktime\WorkforceAuthorization;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
@@ -20,6 +21,7 @@ final class LeaveReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
+        WorkforceAuthorization $permissions,
     ): JsonResponse {
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
@@ -143,7 +145,8 @@ final class LeaveReadController extends Controller
                     'completed' => $completed,
                     'shifted' => (int) ($summaryRaw->shifted ?? 0),
                 ],
-                'leave_writes_enabled' => (bool) config('hrm.leave_writes_enabled', false),
+                'leave_writes_enabled' => $permissions->canManageLeaveRequests($request->user(), $company),
+                'can_manage_leave_requests' => $permissions->canManageLeaveRequests($request->user(), $company),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
