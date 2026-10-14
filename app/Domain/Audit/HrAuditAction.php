@@ -37,4 +37,11 @@ enum HrAuditAction: string
     case WorktimeRecordsListed = 'worktime.records_listed';
     case WorktimeCalendarDaysUpserted = 'worktime.calendar_days_upserted';
     case LeaveRecordsListed = 'leave.records_listed';
+    case LeaveTypeCreated = 'leave.type_created';
+    case LeaveRequestCreated = 'leave.request_created';
+    case LeaveRequestUpdated = 'leave.request_updated';
+    case LeaveRequestSubmitted = 'leave.request_submitted';
+    case LeaveRequestCancelled = 'leave.request_cancelled';
+    case LeaveRequestApproved = 'leave.request_approved';
+    case LeaveRequestRejected = 'leave.request_rejected';
 }

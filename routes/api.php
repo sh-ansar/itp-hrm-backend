@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
+use App\Http\Controllers\Api\V1\LeaveRequestController;
+use App\Http\Controllers\Api\V1\LeaveTypeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +65,22 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/leaves', LeaveReadController::class)
             ->whereUuid('company');
+        Route::get('/companies/{company}/leave-types', [LeaveTypeController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/leave-types', [LeaveTypeController::class, 'store'])
+            ->whereUuid('company');
+        Route::get('/companies/{company}/leave-requests', [LeaveRequestController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/leave-requests', [LeaveRequestController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'update'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/submit', [LeaveRequestController::class, 'submit'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/decision', [LeaveRequestController::class, 'decision'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
         Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'store'])
