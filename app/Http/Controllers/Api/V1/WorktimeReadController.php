@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Worktime\WorkforceAuthorization;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
@@ -175,6 +176,7 @@ final class WorktimeReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
+        WorkforceAuthorization $permissions,
     ): JsonResponse {
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
@@ -210,7 +212,8 @@ final class WorktimeReadController extends Controller
                 'recorded_days' => $rows->count(),
                 'expected_days' => $from->daysInMonth,
                 'calendar_complete' => $rows->count() === $from->daysInMonth,
-                'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'worktime_writes_enabled' => $permissions->canEditCalendar($request->user(), $company),
+                'can_edit_calendar' => $permissions->canEditCalendar($request->user(), $company),
             ],
         ]);
     }
