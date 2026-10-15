@@ -45,13 +45,20 @@ final class ProtectedLeaveCategoryTest extends TestCase
         $this->actingAs($admin)->postJson($typesUrl, [
             'code' => 'medical_wrong', 'name' => 'Medical leave',
             'annual_days' => null, 'balance_method' => 'working_days', 'category' => 'medical',
-        ])->assertCreated();
-        $wrong = DB::table('leave_types')->where('company_id', $company)->where('code', 'medical_wrong')->value('id');
-        $draft['leave_type_id'] = $wrong;
-        $draft['planned_started_on'] = '2029-01-01';
-        $draft['planned_ended_on'] = '2029-01-10';
+        ])->assertUnprocessable()->assertJsonValidationErrors('balance_method');
+        $this->assertDatabaseMissing('leave_types', [
+            'company_id' => $company, 'code' => 'medical_wrong',
+        ]);
+
+        $ordinaryType = $this->actingAs($admin)->postJson($typesUrl, [
+            'code' => 'ordinary_annual', 'name' => 'Ordinary annual leave',
+            'annual_days' => 24, 'balance_method' => 'calendar_days',
+        ])->assertCreated()->assertJsonPath('data.category', 'ordinary')->json('data.id');
+        $draft['leave_type_id'] = $ordinaryType;
+        $draft['planned_started_on'] = '2030-01-01';
+        $draft['planned_ended_on'] = '2031-02-04';
         $this->actingAs($admin)->postJson("/api/v1/companies/{$company}/leave-requests", $draft)
-            ->assertUnprocessable();
+            ->assertUnprocessable()->assertJsonValidationErrors('planned_ended_on');
 
         $this->assertDatabaseCount('leave_requests', 1);
     }
