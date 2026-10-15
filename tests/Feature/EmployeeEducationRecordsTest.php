@@ -161,4 +161,46 @@ final class EmployeeEducationRecordsTest extends TestCase
         $this->actingAs($manager)->postJson($base.'/education', $this->data())
             ->assertForbidden();
     }
+    public function test_year_only_education_does_not_invent_calendar_dates(): void
+    {
+        extract($this->employeeFixture());
+        config()->set('hrm.personnel_writes_enabled', true);
+        $url = $base.'/education';
+        $data = $this->payload([
+            'started_on' => null, 'ended_on' => null,
+            'started_year' => 2002, 'ended_year' => 2006,
+            'organization' => 'Synthetic Technical College',
+        ]);
+        $id = $this->actingAs($hr)->postJson($url, $data)
+            ->assertCreated()->json('data.id');
+
+        $this->assertDatabaseHas('employee_education_records', [
+            'id' => $id, 'started_on' => null, 'ended_on' => null,
+            'started_year' => 2002, 'ended_year' => 2006,
+        ]);
+        $this->actingAs($hr)->getJson($base)->assertOk()
+            ->assertJsonPath('private_profile.education.0.started_year', 2002)
+            ->assertJsonPath('private_profile.education.0.ended_year', 2006)
+            ->assertJsonPath('private_profile.education.0.started_on', null);
+
+        // Existing clients that omit the new fields must not erase them.
+        $this->actingAs($hr)->putJson($url.'/'.$id, [
+            ...$this->payload(['started_on' => null, 'ended_on' => null]),
+            'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+        $this->assertDatabaseHas('employee_education_records', [
+            'id' => $id, 'started_year' => 2002, 'ended_year' => 2006,
+            'revision' => 2,
+        ]);
+
+        $this->actingAs($hr)->postJson($url, $this->payload([
+            'started_on' => null, 'ended_on' => null,
+            'started_year' => 2015, 'ended_year' => 2010,
+        ]))->assertUnprocessable();
+        $this->actingAs($hr)->postJson($url, $this->payload([
+            'started_year' => 2002, 'ended_year' => 2006,
+        ]))->assertUnprocessable(); // Date/year disagreement
+        $this->assertDatabaseCount('employee_education_records', 1);
+    }
+
 }
