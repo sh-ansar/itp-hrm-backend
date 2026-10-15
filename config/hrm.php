@@ -16,5 +16,8 @@ return [
     // Leave mutations are not released with the first read-only leave contract.
     'leave_writes_enabled' => (bool) env('HRM_LEAVE_WRITES_ENABLED', false),
 
+    // Financially sensitive proposals remain disabled until explicit deployment approval.
+    'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),
+
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
 ];

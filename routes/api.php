@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
 use App\Http\Controllers\Api\V1\LeaveTypeController;
+use App\Http\Controllers\Api\V1\EmployeeBonusController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -125,6 +126,18 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/documents', [PersonnelDocumentController::class, 'index'])
             ->whereUuid('company');
 
+        Route::get('/companies/{company}/bonuses', [EmployeeBonusController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/bonuses', [EmployeeBonusController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/bonuses/{bonus}', [EmployeeBonusController::class, 'update'])
+            ->whereUuid('company')->whereUuid('bonus');
+        Route::post('/companies/{company}/bonuses/{bonus}/submit', [EmployeeBonusController::class, 'submit'])
+            ->whereUuid('company')->whereUuid('bonus');
+        Route::post('/companies/{company}/bonuses/{bonus}/cancel', [EmployeeBonusController::class, 'cancel'])
+            ->whereUuid('company')->whereUuid('bonus');
+        Route::post('/companies/{company}/bonuses/{bonus}/decision', [EmployeeBonusController::class, 'decision'])
+            ->whereUuid('company')->whereUuid('bonus');
         Route::get('/companies/{company}/personnel-actions', [PersonnelActionController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/employees/{employee}/personnel-actions/hire', [PersonnelActionController::class, 'hire'])
