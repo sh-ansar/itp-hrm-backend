@@ -2,32 +2,16 @@
 
 namespace App\Http\Requests\Personnel;
 
-use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Personnel\EmployeePrivateWriteAuthorization;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class SavePrivateProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        abort_unless((bool) config('hrm.personnel_writes_enabled', false), 404);
         abort_unless(in_array($this->route('section'), ['personal', 'military'], true), 404);
-
-        $company = (string) $this->route('company');
-        $employee = (string) $this->route('employee');
-        $role = DB::table('company_user_roles')
-            ->where('company_id', $company)
-            ->where('user_id', $this->user()->getAuthIdentifier())
-            ->value('role_code');
-        if (! in_array($role, ['company_admin', 'hr_specialist'], true)) {
-            return false;
-        }
-
-        app(EmployeeVisibility::class)->visibleFor($this->user(), $company)
-            ->where('employees.id', $employee)->firstOrFail();
-
-        return true;
+        return app(EmployeePrivateWriteAuthorization::class)->canWrite($this);
     }
 
     public function rules(): array
