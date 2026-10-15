@@ -7,6 +7,7 @@ use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
 use App\Domain\Personnel\EmployeePrivateProfile;
 use App\Domain\Personnel\EmployeePrivateRecords;
+use App\Domain\Personnel\EmployeeEducationRecords;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ final class EmployeeShowController extends Controller
         EmployeeVisibility $visibility,
         EmployeePrivateProfile $privateProfiles,
         EmployeePrivateRecords $privateRecords,
+        EmployeeEducationRecords $educationRecords,
         HrAuditWriter $audit,
     ): JsonResponse {
         $row = $visibility->visibleFor($request->user(), $company)
@@ -84,7 +86,7 @@ final class EmployeeShowController extends Controller
         // All private fields are in a dedicated tenant-checked store and only
         // included in a direct, HR-authorized employee detail response.
         $privateProfile = $extended
-            ? array_merge($privateProfiles->read($company, $employee), $privateRecords->read($company, $employee))
+            ? array_merge($privateProfiles->read($company, $employee), $privateRecords->read($company, $employee), $educationRecords->read($company, $employee))
             : null;
 
         // A manager may view the basic card but not protected personnel development history.
@@ -116,6 +118,9 @@ final class EmployeeShowController extends Controller
                     HrAuditAction::EmployeePrivateRecordCreated->value,
                     HrAuditAction::EmployeePrivateRecordUpdated->value,
                     HrAuditAction::EmployeePrivateRecordArchived->value,
+                    HrAuditAction::EmployeeEducationCreated->value,
+                    HrAuditAction::EmployeeEducationUpdated->value,
+                    HrAuditAction::EmployeeEducationArchived->value,
                     HrAuditAction::PersonnelAssignmentCreated->value,
                     HrAuditAction::PersonnelAssignmentUpdated->value,
                     HrAuditAction::PersonnelAssignmentTransitioned->value,
@@ -147,6 +152,7 @@ final class EmployeeShowController extends Controller
                 'private_profile_writes_enabled' => $personnelWritesEnabled,
                 'private_family_truncated' => $extended && $privateProfile['family_truncated'],
                 'private_identities_truncated' => $extended && $privateProfile['identity_documents_truncated'],
+                'private_education_truncated' => $extended && $privateProfile['education_truncated'],
                 'assignment_writes_enabled' => $personnelWritesEnabled,
                 'employee_writes_enabled' => $personnelWritesEnabled,
             ],
