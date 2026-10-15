@@ -25,4 +25,8 @@ return [
     'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),
 
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
+
+    // Use a distinct XSRF cookie when HRM shares a hostname with other apps.
+    // Existing independent environments retain the Laravel default.
+    'xsrf_cookie_name' => env('HRM_XSRF_COOKIE_NAME', 'XSRF-TOKEN'),
 ];

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use App\Http\Middleware\IsolatedXsrfCookie;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-class StrictCsrfForTest extends ValidateCsrfToken
+class StrictCsrfForTest extends IsolatedXsrfCookie
 {
     // Laravel disables CSRF verification during ordinary PHPUnit runs.
     // Override only in explicit CSRF integration tests.
@@ -29,6 +29,53 @@ class BrowserSessionAuthTest extends TestCase
     {
         parent::setUp();
         config()->set('hrm.browser_login_enabled', true);
+    }
+
+    public function test_hrm_can_issue_isolated_csrf_and_session_cookies_on_shared_hostname(): void
+    {
+        config()->set('hrm.xsrf_cookie_name', 'HRM-XSRF-TOKEN');
+        config()->set('session.cookie', 'hrm_session');
+        config()->set('session.path', '/');
+        config()->set('session.domain', null);
+        config()->set('session.secure', true);
+
+        $response = $this->get('/sanctum/csrf-cookie');
+        $response->assertNoContent();
+        $cookies = $response->baseResponse->headers->getCookies();
+        $names = array_map(static fn ($cookie): string => $cookie->getName(), $cookies);
+        $this->assertContains('HRM-XSRF-TOKEN', $names);
+        $this->assertContains('hrm_session', $names);
+        $this->assertNotContains('XSRF-TOKEN', $names);
+
+        foreach ($cookies as $cookie) {
+            $this->assertSame('/', $cookie->getPath());
+            $this->assertNull($cookie->getDomain());
+            $this->assertTrue($cookie->isSecure());
+            if ($cookie->getName() === 'hrm_session') {
+                $this->assertTrue($cookie->isHttpOnly());
+            }
+            if ($cookie->getName() === 'HRM-XSRF-TOKEN') {
+                $this->assertFalse($cookie->isHttpOnly());
+            }
+        }
+    }
+
+    public function test_stateful_api_uses_same_isolated_xsrf_cookie(): void
+    {
+        config()->set('hrm.xsrf_cookie_name', 'HRM-XSRF-TOKEN');
+        config()->set('sanctum.stateful', ['platform.itpmining.kz']);
+        $this->withHeaders([
+            'Origin' => 'https://platform.itpmining.kz',
+            'Referer' => 'https://platform.itpmining.kz/hrm/',
+        ]);
+        $response = $this->getJson('/api/v1/me');
+        $response->assertUnauthorized();
+        $names = array_map(
+            static fn ($cookie): string => $cookie->getName(),
+            $response->baseResponse->headers->getCookies(),
+        );
+        $this->assertContains('HRM-XSRF-TOKEN', $names);
+        $this->assertNotContains('XSRF-TOKEN', $names);
     }
 
     private function user(): User
@@ -199,7 +246,7 @@ class BrowserSessionAuthTest extends TestCase
 
     public function test_csrf_middleware_rejects_missing_token_for_login(): void
     {
-        $this->app->bind(ValidateCsrfToken::class, StrictCsrfForTest::class);
+        $this->app->bind(IsolatedXsrfCookie::class, StrictCsrfForTest::class);
         $this->user();
 
         $this->postJson('/auth/login', $this->loginPayload())->assertStatus(419);
@@ -208,7 +255,7 @@ class BrowserSessionAuthTest extends TestCase
 
     public function test_csrf_middleware_accepts_matching_token_for_login(): void
     {
-        $this->app->bind(ValidateCsrfToken::class, StrictCsrfForTest::class);
+        $this->app->bind(IsolatedXsrfCookie::class, StrictCsrfForTest::class);
         $this->user();
 
         $this->withSession(['_token' => 'synthetic-csrf-token'])
@@ -219,7 +266,7 @@ class BrowserSessionAuthTest extends TestCase
 
     public function test_csrf_middleware_rejects_logout_without_token(): void
     {
-        $this->app->bind(ValidateCsrfToken::class, StrictCsrfForTest::class);
+        $this->app->bind(IsolatedXsrfCookie::class, StrictCsrfForTest::class);
         $user = $this->user();
 
         $this->actingAs($user)->postJson('/auth/logout')->assertStatus(419);
@@ -228,7 +275,7 @@ class BrowserSessionAuthTest extends TestCase
 
     public function test_stateful_personnel_write_rejects_missing_csrf_token(): void
     {
-        $this->app->bind(ValidateCsrfToken::class, StrictCsrfForTest::class);
+        $this->app->bind(IsolatedXsrfCookie::class, StrictCsrfForTest::class);
         config()->set('sanctum.stateful', ['localhost']);
         $user = $this->user();
         $company = (string) Str::uuid();
