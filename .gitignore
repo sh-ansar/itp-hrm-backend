@@ -17,3 +17,8 @@
 /.env
 /php.local.ini
 
+
+# Disposable browser/E2E SQLite databases (never commit employee fixtures)
+/database/*.sqlite
+/database/*.sqlite-shm
+/database/*.sqlite-wal

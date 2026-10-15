@@ -1,0 +1,86 @@
+name: HRM Private MinIO Integration
+
+on:
+  push:
+    paths:
+      - 'app/Http/Controllers/Api/V1/PersonnelDocumentFileController.php'
+      - 'config/filesystems.php'
+      - 'tests/Feature/PersonnelDocumentMinioLiveTest.php'
+      - '.github/workflows/private-minio-integration.yml'
+      - 'composer.json'
+      - 'composer.lock'
+  pull_request:
+    paths:
+      - 'app/Http/Controllers/Api/V1/PersonnelDocumentFileController.php'
+      - 'config/filesystems.php'
+      - 'tests/Feature/PersonnelDocumentMinioLiveTest.php'
+      - '.github/workflows/private-minio-integration.yml'
+      - 'composer.json'
+      - 'composer.lock'
+
+jobs:
+  synthetic-private-storage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      AWS_EC2_METADATA_DISABLED: 'true'
+      MINIO_ENDPOINT: http://127.0.0.1:9000
+      MINIO_REGION: us-east-1
+      MINIO_BUCKET: hrm-ci-private
+      MINIO_ACCESS_KEY: synthetic-ci-minio
+      MINIO_SECRET_KEY: synthetic-ci-only-secret-for-ephemeral-minio
+      HRM_RUN_MINIO_INTEGRATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: exif, gd, mbstring, pdo_sqlite, sqlite3, curl, fileinfo
+          coverage: none
+      - name: Create isolated application test environment
+        run: echo APP_ENV=testing > .env
+      - name: Install exact Laravel dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Start temporary MinIO with disposable data and synthetic credentials
+        run: |
+          set -euo pipefail
+          # This archived MinIO CE image is used ONLY in short-lived CI with fake records.
+          # It must NOT be treated as a recommended production deployment image.
+          docker run --detach --name hrm-minio-ci \
+            --publish 127.0.0.1:9000:9000 \
+            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            minio/minio:RELEASE.2025-09-07T16-13-09Z \
+            server /data --address ":9000"
+          ready=0
+          for i in $(seq 1 50); do
+            if curl --silent --fail "http://127.0.0.1:9000/minio/health/ready" > /dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != 1 ]; then docker logs hrm-minio-ci; exit 1; fi
+      - name: Provision isolated PRIVATE bucket using CI credentials
+        run: |
+          php -r '
+          require "vendor/autoload.php";
+          $s3 = new Aws\S3\S3Client([
+            "version" => "latest",
+            "region" => "us-east-1",
+            "endpoint" => getenv("MINIO_ENDPOINT"),
+            "use_path_style_endpoint" => true,
+            "credentials" => [
+              "key" => getenv("MINIO_ACCESS_KEY"),
+              "secret" => getenv("MINIO_SECRET_KEY"),
+            ],
+          ]);
+          $s3->createBucket(["Bucket" => getenv("MINIO_BUCKET")]);
+          '
+      - name: Validate Laravel access controls against REAL MinIO
+        run: php artisan test --filter=PersonnelDocumentMinioLiveTest --display-warnings --fail-on-warning
+      - name: Dispose of temporary MinIO
+        if: always()
+        run: docker rm --force hrm-minio-ci || true
