@@ -29,4 +29,8 @@ return [
     // Use a distinct XSRF cookie when HRM shares a hostname with other apps.
     // Existing independent environments retain the Laravel default.
     'xsrf_cookie_name' => env('HRM_XSRF_COOKIE_NAME', 'XSRF-TOKEN'),
+
+    // Explicit one-time bootstrap; never enabled automatically on production.
+    'company_bootstrap_enabled' => (bool) env('HRM_BOOTSTRAP_COMPANIES_ENABLED', false),
+    'admin_bootstrap_enabled' => (bool) env('HRM_BOOTSTRAP_ADMIN_ENABLED', false),
 ];
