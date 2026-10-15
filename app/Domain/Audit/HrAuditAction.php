@@ -15,6 +15,9 @@ enum HrAuditAction: string
     case EmployeePrivateRecordCreated = 'personnel.private_record_created';
     case EmployeePrivateRecordUpdated = 'personnel.private_record_updated';
     case EmployeePrivateRecordArchived = 'personnel.private_record_archived';
+    case EmployeeEducationCreated = 'personnel.education_created';
+    case EmployeeEducationUpdated = 'personnel.education_updated';
+    case EmployeeEducationArchived = 'personnel.education_archived';
     case PersonnelAssignmentCreated = 'personnel.assignment_created';
     case PersonnelAssignmentUpdated = 'personnel.assignment_updated';
     case PersonnelAssignmentTransitioned = 'personnel.assignment_transitioned';
