@@ -1,0 +1,47 @@
+# NOT LIVE. Dedicated HRM hostname only. Review HTTPS certificate and service first.
+# Do not insert into an existing shared application's VirtualHost.
+# Keep the existing vhosts and /api mappings intact.
+
+<VirtualHost *:80>
+    ServerName hrm.example.org
+    RewriteEngine On
+    RewriteRule ^ https://hrm.example.org%{REQUEST_URI} [R=301,L,NE]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName hrm.example.org
+    SSLEngine On
+    SSLCertificateFile "C:/certs/REPLACE_WITH_CERTIFICATE.pem"
+    SSLCertificateKeyFile "C:/certs/REPLACE_WITH_PRIVATE_KEY.pem"
+
+    DocumentRoot "C:/xampp/htdocs/hrm-web"
+    <Directory "C:/xampp/htdocs/hrm-web">
+        Options -Indexes -MultiViews
+        AllowOverride None
+        Require all granted
+        DirectoryIndex index.html
+
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule ^ index.html [L]
+    </Directory>
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+    # /api, /auth and /sanctum all point to the SAME dedicated Laravel runtime.
+    # This runtime MUST be an independently managed PHP >= 8.4.1 service.
+    # Do not expose this loopback port via the firewall.
+    ProxyPass "/api/" "http://127.0.0.1:18080/api/" connectiontimeout=3 timeout=40
+    ProxyPassReverse "/api/" "http://127.0.0.1:18080/api/"
+    ProxyPass "/auth/" "http://127.0.0.1:18080/auth/" connectiontimeout=3 timeout=40
+    ProxyPassReverse "/auth/" "http://127.0.0.1:18080/auth/"
+    ProxyPass "/sanctum/" "http://127.0.0.1:18080/sanctum/" connectiontimeout=3 timeout=40
+    ProxyPassReverse "/sanctum/" "http://127.0.0.1:18080/sanctum/"
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "same-origin"
+    # Add HSTS only after end-to-end TLS/rollback acceptance.
+    ErrorLog  "logs/hrm-dedicated-error.log"
+    CustomLog "logs/hrm-dedicated-access.log" combined
+</VirtualHost>
