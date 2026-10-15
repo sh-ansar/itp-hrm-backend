@@ -10,7 +10,27 @@ This is a PREPARATION document. No Windows service, website, DNS, database, MinI
 - Publish only the built Vue `dist` directory. Laravel source, `.env`, `storage`, `vendor`, uploads, exports, database data, backups and MinIO credentials must stay **outside** every Apache DocumentRoot.
 - Do not copy real HR records or seed demo accounts into a production database.
 
-## Preferred topology: separate hostname
+## Chosen route: existing platform host, separate HRM paths
+
+The frontend will be deployed **exactly like Unityre**, as static Vue files in
+`C:/xampp/htdocs/hrm/dist/` with an isolated Apache `Alias /hrm/` under the
+existing `platform.itpmining.kz` HTTPS VirtualHost. No new frontend HTTP server
+is needed. Vue is built with base `/hrm/` and all deep links reload through its
+own SPA fallback. Separate API requests use `/hrm-api/`, never the existing
+platform `/api/` or Unityre `/unityre-api/`.
+
+See the frontend repository's `deploy/README-HTDOCS.md` and
+`deploy/platform-hrm-alias.conf.example`. The frontend-only route can be
+prepared independently. **Do not enable real HRM login or staff data access**
+until the distinct Laravel PHP 8.4+ runtime, PostgreSQL user/database and
+private MinIO are tested. The same hostname means HRM also needs a unique
+session cookie and an independently named XSRF cookie so other Laravel apps
+cannot overwrite its security tokens. Current platform Apache configuration
+sets `X-Forwarded-Prefix: /unityre-api` globally; HRM must override it for
+`/hrm-api/` only, without changing Unityre. These are release blockers, not
+optional cosmetic improvements.
+
+## Alternative topology: separate hostname
 
 Example hostname `hrm.example.org` (final DNS/TLS certificate subject to approval):
 
@@ -25,7 +45,7 @@ https://hrm.example.org/
                                       | private MinIO bucket over TLS, server-side only
 ```
 
-The dedicated hostname is safer than nesting under an already active `platform.example.org/hrm/`: the shared site may already own `/api`, and Vue base paths, fallback routes, Sanctum stateful origins, cookie paths and CSRF would otherwise need coordinated changes. If a path is ultimately required, develop/test it as a **separate** work item with browser E2E before touching the existing virtual host.
+A dedicated hostname remains a fallback if secure session/CSRF isolation cannot be demonstrated on the shared platform host. It is not the currently selected rollout route. Frontend subpath build and browser tests are maintained independently in the frontend repo.
 
 The Apache example in `deploy/examples/hrm-vhost.conf.example` is only a template. Add it to a new, separately reviewed include when a dedicated certificate, hostname and backend service are ready; never paste it blindly into a live vhost or restart Apache before `httpd -t`, baseline config backup, staging tests and rollback plan.
 
@@ -46,7 +66,7 @@ Never run `migrate:fresh`, seeders, `db:wipe` or manual SQL against the shared o
 ## Application/session isolation
 
 - Build Vue from the reviewed Git SHA, with production demo mode disabled. `npm run build`, no live API keys in the browser bundle.
-- Configure a same-origin reverse proxy: `/api`, `/auth`, `/sanctum` are served by the dedicated Laravel origin behind Apache, not any existing shared site's `/api` alias.
+- For the selected platform-host rollout, reverse-proxy `/hrm-api/` to the private Laravel loopback service. Vue calls `/hrm-api/api/v1`, `/hrm-api/auth/`, `/hrm-api/sanctum/`; do not rewrite or share the existing platform's `/api`, `/auth` or Unityre aliases.
 - Enable HTTPS, strict dedicated CORS/stateful host allowlist, `SESSION_SECURE_COOKIE=true`, HttpOnly, SameSite and host-only cookies; no wildcard domain and no user tokens in localStorage.
 - Laravel `APP_DEBUG=false`, `APP_ENV=production`, unique `APP_KEY`, logs and file permissions isolated by OS account. Prefer `CACHE_STORE=database`, `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database` using **only the new hrm_db/hrm schema** (the required cache/jobs/sessions migrations already exist); do not attach HRM to any existing shared Redis service without a separate reviewed namespace/credentials.
 - Role grants, CSRF, current-session revocation, guest denial, tenant isolation and all four locale/theme screens must pass against the SAME deployed SHA.
@@ -58,9 +78,9 @@ Never run `migrate:fresh`, seeders, `db:wipe` or manual SQL against the shared o
 2. Provision separate folder, service identity, new loopback PHP 8.4 backend runtime, isolated PostgreSQL cluster and private MinIO bucket; verify no port or hostname overlaps.
 3. Deploy versioned code to private release directory, a dist-only frontend to a new empty webroot, and per-service secrets outside Git and the webroot.
 4. Create fresh HRM DB with restricted roles, run migrations through migrator account, inject synthetic-only fixtures and test read/write/denied cases.
-5. Test on private hostname: login, 401/403/419, session revoke, Vue fallback, responsive 375/768/1280/1440, RU/KZ/EN/GE, all workflows, MinIO private download and storage outage.
-6. Run Apache configuration test; enable **only** the dedicated host; smoke-test pre-existing public routes and check their status codes after change. Observe CPU/memory/ports/logs.
-7. Snapshot and tag a version; if any regression, disable **only** the new HRM vhost/backend service and restore its previous release. No other service restart or database rollback.
+5. Test `/hrm/` plus `/hrm-api/` on a staging hostname: login, 401/403/419, session revoke, cookie coexistence with platform/Unityre, Vue fallback, responsive 375/768/1280/1440, RU/KZ/EN/GE, all workflows, MinIO private download and storage outage.
+6. Run Apache configuration test; enable **only** new HRM Alias and proxy rules in the existing platform HTTPS VirtualHost; smoke-test pre-existing public routes and check their status codes after change. Observe CPU/memory/ports/logs.
+7. Snapshot and tag a version; if any regression, remove **only** the newly added HRM Alias/proxy rules and stop the private HRM backend service; restore its previous release. No other service restart or database rollback.
 8. Only after owner acceptance, security review, off-host restore-tested backups and audit retention should real personnel accounts/writes be enabled.
 
 ## Read-only readiness check
