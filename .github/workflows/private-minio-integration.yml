@@ -2,10 +2,13 @@ name: HRM Private MinIO Integration
 
 on:
   push:
+    branches: [main]
     paths:
       - 'app/Http/Controllers/Api/V1/PersonnelDocumentFileController.php'
       - 'config/filesystems.php'
       - 'tests/Feature/PersonnelDocumentMinioLiveTest.php'
+      - 'app/Console/Commands/MigratePersonnelDocumentsToMinio.php'
+      - 'tests/Feature/PersonnelDocumentMigrationTest.php'
       - '.github/workflows/private-minio-integration.yml'
       - 'composer.json'
       - 'composer.lock'
@@ -14,6 +17,8 @@ on:
       - 'app/Http/Controllers/Api/V1/PersonnelDocumentFileController.php'
       - 'config/filesystems.php'
       - 'tests/Feature/PersonnelDocumentMinioLiveTest.php'
+      - 'app/Console/Commands/MigratePersonnelDocumentsToMinio.php'
+      - 'tests/Feature/PersonnelDocumentMigrationTest.php'
       - '.github/workflows/private-minio-integration.yml'
       - 'composer.json'
       - 'composer.lock'

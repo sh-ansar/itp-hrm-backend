@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Identity\AccountState;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -79,6 +81,7 @@ final class PersonnelDocumentMinioLiveTest extends TestCase
         self::assertSame('minio', $row->storage_disk);
         self::assertStringStartsWith("personnel-documents/{$company}/{$document}/", $row->storage_path);
         self::assertTrue(Storage::disk('minio')->exists($row->storage_path));
+        $migratedKey = null;
 
         try {
             // MinIO must not expose the object directly by its known complete path.
@@ -95,16 +98,54 @@ final class PersonnelDocumentMinioLiveTest extends TestCase
                 ->assertHeader('X-Content-Type-Options', 'nosniff');
             self::assertSame($pdf, $response->streamedContent());
 
+            // Now migrate a separate legacy PDF through the same real MinIO.
+            $legacyId = (string) Str::uuid();
+            $legacyPath = "personnel-documents/{$company}/{$legacyId}/"
+                .str_repeat('b', 32).'.pdf';
+            Storage::fake('local');
+            Storage::disk('local')->put($legacyPath, $pdf);
+            DB::table('personnel_documents')->insert([
+                'id' => $legacyId, 'company_id' => $company, 'employee_id' => $employee,
+                'document_type' => 'basis', 'title' => 'Synthetic historical PDF',
+                'status' => 'draft', 'storage_disk' => 'local', 'storage_path' => $legacyPath,
+                'sha256' => hash('sha256', $pdf), 'byte_size' => strlen($pdf),
+                'revision' => 1,
+            ]);
+            $admin->forceFill(['account_status' => AccountState::Active])->save();
+            DB::table('company_user_roles')->where('company_id', $company)
+                ->where('user_id', $admin->id)->update(['role_code' => 'company_admin']);
+            config()->set('hrm.document_storage_migration_enabled', true);
+
+            self::assertSame(0, Artisan::call('hrm:documents:migrate-to-minio', [
+                'company' => $company, '--actor' => $admin->id, '--execute' => true,
+            ]));
+            $migrated = DB::table('personnel_documents')->where('id', $legacyId)->first();
+            self::assertSame('minio', $migrated->storage_disk);
+            self::assertSame(2, (int) $migrated->revision);
+            self::assertTrue(Storage::disk('local')->exists($legacyPath));
+            $migratedKey = $migrated->storage_path;
+            $legacyResponse = $this->actingAs($admin)
+                ->get("/api/v1/companies/{$company}/documents/{$legacyId}/file")
+                ->assertOk();
+            self::assertSame($pdf, $legacyResponse->streamedContent());
+            $directMigrated = Http::timeout(3)->get("{$endpoint}/{$bucket}/{$migratedKey}");
+            self::assertContains($directMigrated->status(), [401, 403, 404]);
+
             // Revocation takes effect immediately, including for existing sessions.
             DB::table('company_user_roles')->where('company_id', $company)
                 ->where('user_id', $admin->id)->delete();
             $this->actingAs($admin)->get($url)->assertNotFound();
+            $this->actingAs($admin)->get("/api/v1/companies/{$company}/documents/{$legacyId}/file")
+                ->assertNotFound();
             $this->assertDatabaseHas('hr_audit_events', [
                 'company_id' => $company,
                 'action' => 'personnel.document_file_downloaded',
             ]);
         } finally {
             Storage::disk('minio')->delete($row->storage_path);
+            if ($migratedKey !== null) {
+                Storage::disk('minio')->delete($migratedKey);
+            }
         }
     }
 }
