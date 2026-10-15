@@ -124,8 +124,9 @@ final class LeaveReadController extends Controller
             ->orderBy('l.id');
 
         $page = $query->paginate((int) ($validated['per_page'] ?? 50));
+        $canReadProtected = $permissions->canReadProtectedLeaveDetails($request->user(), $company);
         $page->getCollection()->transform(
-            fn (object $row): array => $this->serializeLeave($row, $today),
+            fn (object $row): array => $this->serializeLeave($row, $today, $canReadProtected),
         );
 
         $audit->record($request->user(), $company, HrAuditAction::LeaveRecordsListed, null, [
@@ -156,10 +157,12 @@ final class LeaveReadController extends Controller
         ]);
     }
 
-    private function serializeLeave(object $row, string $today): array
+    private function serializeLeave(object $row, string $today, bool $canReadProtected): array
     {
         $actualStarted = $row->actual_started_on;
         $actualEnded = $row->actual_ended_on;
+        // Managers need the absence period for planning, not the medical/family reason.
+        $masked = !$canReadProtected && in_array($row->category, ['maternity', 'childcare', 'medical'], true);
 
         $status = 'planned';
         if ($actualStarted !== null && $actualStarted <= $today
@@ -182,11 +185,11 @@ final class LeaveReadController extends Controller
             'department_name' => $row->department_name,
             'position_name' => $row->position_name,
             'leave_type_id' => $row->leave_type_id,
-            'leave_type_code' => $row->leave_type_code,
-            'leave_type_name' => $row->leave_type_name,
-            'annual_days' => $row->annual_days !== null ? (int) $row->annual_days : null,
-            'balance_method' => $row->balance_method,
-            'category' => $row->category,
+            'leave_type_code' => $masked ? 'restricted' : $row->leave_type_code,
+            'leave_type_name' => $masked ? 'Restricted leave' : $row->leave_type_name,
+            'annual_days' => $masked ? null : ($row->annual_days !== null ? (int) $row->annual_days : null),
+            'balance_method' => $masked ? null : $row->balance_method,
+            'category' => $masked ? 'restricted' : $row->category,
             'planned_started_on' => $row->planned_started_on,
             'planned_ended_on' => $row->planned_ended_on,
             'planned_days' => (int) $row->planned_days,

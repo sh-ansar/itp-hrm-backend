@@ -23,6 +23,16 @@ final class WorkforceAuthorization
         return $this->companyRoleIs($actor, $companyId, ['company_admin']);
     }
 
+    /** Protected medical/parental leave details are not a department-wide permission. */
+    public function canReadProtectedLeaveDetails(User $actor, string $companyId): bool
+    {
+        return DB::table('company_user_roles')
+            ->where('company_id', $companyId)
+            ->where('user_id', $actor->getAuthIdentifier())
+            ->whereIn('role_code', ['company_admin', 'hr_specialist'])
+            ->exists();
+    }
+
     private function companyRoleIs(User $actor, string $companyId, array $allowed): bool
     {
         if (! config('hrm.leave_writes_enabled', false)) {

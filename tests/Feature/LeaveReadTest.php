@@ -171,6 +171,42 @@ final class LeaveReadTest extends TestCase
             ->assertJsonPath('meta.summary.employees', 1);
     }
 
+    public function test_manager_sees_absence_period_without_protected_medical_details(): void
+    {
+        Carbon::setTestNow('2026-10-13 12:00:00');
+        $manager = User::factory()->create();
+        [$company, $department, $position] = $this->companyScope($manager, 'department_manager');
+        DB::table('department_access_scopes')->insert([
+            'company_id' => $company, 'user_id' => $manager->id, 'department_id' => $department,
+        ]);
+        $employee = $this->employee($company, $department, $position, 'SAFE-01', 'Protected', 'Worker');
+        $type = $this->leaveType($company, 'medical_private', 'Sensitive medical leave', null, 'calendar_days');
+        DB::table('leave_types')->where('id', $type)->update(['category' => 'medical']);
+        $this->leave($employee, $type, [
+            'planned_started_on' => '2026-11-01', 'planned_ended_on' => '2026-11-05',
+            'planned_days' => 5,
+        ]);
+
+        $this->actingAs($manager)->getJson("/api/v1/companies/{$company}/leaves?year=2026")
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.employee_id', $employee)
+            ->assertJsonPath('data.0.leave_type_name', 'Restricted leave')
+            ->assertJsonPath('data.0.leave_type_code', 'restricted')
+            ->assertJsonPath('data.0.category', 'restricted')
+            ->assertJsonMissing(['leave_type_name' => 'Sensitive medical leave']);
+        $this->actingAs($manager)->getJson("/api/v1/companies/{$company}/leave-types")
+            ->assertOk()->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.supported_categories.0', 'ordinary');
+
+        $hr = User::factory()->create();
+        DB::table('company_user_roles')->insert([
+            'company_id' => $company, 'user_id' => $hr->id, 'role_code' => 'hr_specialist',
+        ]);
+        $this->actingAs($hr)->getJson("/api/v1/companies/{$company}/leaves?year=2026")
+            ->assertOk()->assertJsonPath('data.0.leave_type_name', 'Sensitive medical leave')
+            ->assertJsonPath('data.0.category', 'medical');
+    }
+
     public function test_plain_employee_cannot_read_company_leave_schedule(): void
     {
         $user = User::factory()->create();

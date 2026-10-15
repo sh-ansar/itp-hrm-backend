@@ -21,15 +21,20 @@ final class LeaveTypeController extends Controller
         WorkforceAuthorization $permissions,
     ): JsonResponse {
         $visibility->visibleFor($request->user(), $company);
-        $types = DB::table('leave_types')->where('company_id', $company)
-            ->select('id', 'code', 'name', 'annual_days', 'balance_method', 'category', 'revision')
+        $canReadProtected = $permissions->canReadProtectedLeaveDetails($request->user(), $company);
+        $query = DB::table('leave_types')->where('company_id', $company);
+        if (!$canReadProtected) {
+            $query->where('category', 'ordinary');
+        }
+        $types = $query->select('id', 'code', 'name', 'annual_days', 'balance_method', 'category', 'revision')
             ->orderBy('name')->get();
 
         return response()->json([
             'data' => $types,
             'meta' => [
                 'can_manage_leave_types' => $permissions->canApproveLeaveRequests($request->user(), $company),
-                'supported_categories' => ['ordinary', 'maternity', 'childcare', 'medical'],
+                'supported_categories' => $canReadProtected
+                    ? ['ordinary', 'maternity', 'childcare', 'medical'] : ['ordinary'],
             ],
         ]);
     }
