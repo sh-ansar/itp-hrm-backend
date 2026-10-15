@@ -93,7 +93,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // Default remains compatible with existing databases. Dedicated deployments
+            // can set DB_SCHEMA=hrm and must grant rights only on that schema.
+            'search_path' => env('DB_SCHEMA', 'public'),
             'sslmode' => 'prefer',
         ],
 

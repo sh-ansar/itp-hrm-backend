@@ -1,0 +1,39 @@
+-- EXAMPLE ONLY. Review and execute interactively as PostgreSQL administrator
+-- inside a newly initialized, HRM-only PostgreSQL cluster on a non-shared port.
+-- NEVER run on an existing cluster/database with other projects or in recovery.
+-- Back up and verify target cluster identity before any DDL.
+\set ON_ERROR_STOP on
+
+CREATE ROLE hrm_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE hrm_migrator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE hrm_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+
+-- These commands prompt for passwords without recording plaintext in this file.
+\password hrm_migrator
+\password hrm_app
+
+CREATE DATABASE hrm_db WITH OWNER hrm_owner ENCODING 'UTF8' TEMPLATE template0;
+REVOKE ALL ON DATABASE hrm_db FROM PUBLIC;
+GRANT CONNECT ON DATABASE hrm_db TO hrm_migrator, hrm_app;
+
+\connect hrm_db
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+CREATE SCHEMA hrm AUTHORIZATION hrm_migrator;
+GRANT USAGE ON SCHEMA hrm TO hrm_app;
+
+ALTER ROLE hrm_migrator IN DATABASE hrm_db SET search_path TO hrm;
+ALTER ROLE hrm_app IN DATABASE hrm_db SET search_path TO hrm;
+
+-- Application cannot create/alter/drop tables; only migrations can.
+ALTER DEFAULT PRIVILEGES FOR ROLE hrm_migrator IN SCHEMA hrm
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hrm_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE hrm_migrator IN SCHEMA hrm
+    GRANT USAGE, SELECT ON SEQUENCES TO hrm_app;
+
+-- After the FIRST approved hrm_migrator migration, apply grants to pre-existing
+-- migration-created objects if they predate the default-privilege declarations:
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA hrm TO hrm_app;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA hrm TO hrm_app;
+
+-- Deploy runtime with DB_USERNAME=hrm_app, DB_SCHEMA=hrm, DB_PORT=55432.
+-- Migrations use DB_USERNAME=hrm_migrator, never the runtime app identity.
