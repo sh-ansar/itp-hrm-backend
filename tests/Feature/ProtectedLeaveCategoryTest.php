@@ -32,7 +32,8 @@ final class ProtectedLeaveCategoryTest extends TestCase
             'annual_days' => null, 'balance_method' => 'calendar_days', 'category' => 'childcare',
         ])->assertCreated()->assertJsonPath('data.category', 'childcare')->json('data.id');
         $this->actingAs($admin)->getJson($typesUrl)
-            ->assertOk()->assertJsonPath('data.0.category', 'childcare');
+            ->assertOk()->assertJsonPath('data.0.category', 'childcare')
+            ->assertJsonPath('meta.supported_categories.2', 'childcare');
 
         $draft = [
             'employee_id' => $employee, 'leave_type_id' => $type,
