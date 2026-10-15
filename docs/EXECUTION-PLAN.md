@@ -69,3 +69,15 @@ Next steps: agree staging HTTPS origin and trusted proxy; run browser E2E agains
 - [x] Browser photo upload/reload/replacement/rejection/removal passed on isolated SQLite; backend tests cover role/company/revision, invalid files, normalization and audit rollback cleanup.
 - Full validation results and exact reference coverage are recorded on the paired PRs before merge. Real staging login/write gates remain unchanged.
 - Next: sensitive IIN/identity/banking contracts; staffing approval/version comparison and payroll rules remain independent domain work.
+
+## Verified vertical slices — 15 October 2026 (GitHub-only, not staging)
+- [x] B68 + F120: company production calendar editing, role flag, optimistic revisions, transaction-coupled audit; SQLite and PostgreSQL and Vue browser CI green. Real feature flags remain OFF in deployment.
+- [x] B69 + F121: company leave types, draft/submitted/approved/rejected/cancelled requests, four-eyes approval, policy-derived leave days and approved schedule projection; SQLite/PostgreSQL/frontend CI green. Leave accruals and reversals remain OPEN.
+- [x] B70 + F122: effective `/api/v1/me/access` capabilities, company-sensitive navigation and module company selection; backend and Vue CI green. Custom real-world roles and employee self-service remain OPEN.
+- [x] B71 + F123: protected employee personal and military data, encrypted IIN, versioned edits, HR-only detail, mobile browser flow; green on SQLite/PostgreSQL/TypeScript and Chromium.
+- [x] B72: repeatable family and identity documents, encrypted document numbers, primary partial unique index, soft archive, HR-only API; SQLite/PostgreSQL 16 CI green.
+- [ ] F124: Vue family/identity manager; PR #124 under review as of 15 October. Do not mark complete without all browser CI and merge.
+- [ ] Production acceptance: dedicated project PostgreSQL, actual HTTPS/staging login/proxy, business role matrix, proper private file import/scan, real employment/payroll rules, backup and restoration rehearsal.
+
+### Next maintainer priority
+Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity/military document attachments and leave/attendance corrections without inventing statutory rules. Apply all migrations only on disposable CI or approved project-owned DBs. Do not declare production readiness.
