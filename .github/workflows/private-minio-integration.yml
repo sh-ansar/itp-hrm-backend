@@ -21,7 +21,7 @@ on:
 jobs:
   synthetic-private-storage:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     env:
       APP_ENV: testing
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -39,30 +39,39 @@ jobs:
           php-version: '8.4'
           extensions: exif, gd, mbstring, pdo_sqlite, sqlite3, curl, fileinfo
           coverage: none
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.8'
+          cache: false
       - name: Create isolated application test environment
         run: echo APP_ENV=testing > .env
       - name: Install exact Laravel dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
-      - name: Start temporary MinIO with disposable data and synthetic credentials
+      - name: Build official pinned MinIO CE release from its archived source
         run: |
           set -euo pipefail
-          # This archived MinIO CE image is used ONLY in short-lived CI with fake records.
-          # It must NOT be treated as a recommended production deployment image.
-          docker run --detach --name hrm-minio-ci \
-            --publish 127.0.0.1:9000:9000 \
-            --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
-            --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
-            minio/minio:RELEASE.2025-09-07T16-13-09Z \
-            server /data --address ":9000"
+          # The historical upstream MinIO repository is read-only. CI uses only
+          # synthetic files and never exposes port 9000 outside this runner.
+          git clone --depth 1 --branch RELEASE.2025-10-15T17-29-55Z \
+            https://github.com/minio/minio.git "$RUNNER_TEMP/minio-ci-source"
+          (cd "$RUNNER_TEMP/minio-ci-source" && go build -trimpath -o "$RUNNER_TEMP/minio-ci" .)
+      - name: Start ephemeral MinIO without a third-party container
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hrm-minio-data"
+          MINIO_ROOT_USER="$MINIO_ACCESS_KEY" MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            "$RUNNER_TEMP/minio-ci" server "$RUNNER_TEMP/hrm-minio-data" \
+              --address ":9000" > "$RUNNER_TEMP/hrm-minio.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/hrm-minio.pid"
           ready=0
-          for i in $(seq 1 50); do
+          for i in $(seq 1 60); do
             if curl --silent --fail "http://127.0.0.1:9000/minio/health/ready" > /dev/null; then
               ready=1
               break
             fi
             sleep 1
           done
-          if [ "$ready" != 1 ]; then docker logs hrm-minio-ci; exit 1; fi
+          if [ "$ready" != 1 ]; then cat "$RUNNER_TEMP/hrm-minio.log"; exit 1; fi
       - name: Provision isolated PRIVATE bucket using CI credentials
         run: |
           php -r '
@@ -83,4 +92,10 @@ jobs:
         run: php artisan test --filter=PersonnelDocumentMinioLiveTest --display-warnings --fail-on-warning
       - name: Dispose of temporary MinIO
         if: always()
-        run: docker rm --force hrm-minio-ci || true
+        run: |
+          if [ -f "$RUNNER_TEMP/hrm-minio.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/hrm-minio.pid")" || true
+          fi
+          if [ -f "$RUNNER_TEMP/hrm-minio.log" ]; then
+            tail -n 50 "$RUNNER_TEMP/hrm-minio.log"
+          fi
