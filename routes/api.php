@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\EmployeeRecordController;
 use App\Http\Controllers\Api\V1\EmployeeShowController;
 use App\Http\Controllers\Api\V1\EmployeePhotoController;
 use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
+use App\Http\Controllers\Api\V1\EmployeePrivateProfileController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
 use App\Http\Controllers\Api\V1\PositionRecordController;
 use App\Http\Controllers\Api\V1\PersonnelActionController;
@@ -146,6 +147,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::put('/companies/{company}/employees/{employee}', [EmployeeRecordController::class, 'update'])
             ->whereUuid('company')->whereUuid('employee');
+        Route::put('/companies/{company}/employees/{employee}/private-profile/{section}', [EmployeePrivateProfileController::class, 'update'])
+            ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['personal', 'military']);
 
         Route::post('/companies/{company}/employees/{employee}/assignments', [EmployeeAssignmentController::class, 'store'])
             ->whereUuid('company')->whereUuid('employee');

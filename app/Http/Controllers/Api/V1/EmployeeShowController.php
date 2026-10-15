@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Personnel\EmployeePrivateProfile;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ final class EmployeeShowController extends Controller
         string $company,
         string $employee,
         EmployeeVisibility $visibility,
+        EmployeePrivateProfile $privateProfiles,
         HrAuditWriter $audit,
     ): JsonResponse {
         $row = $visibility->visibleFor($request->user(), $company)
@@ -77,6 +79,10 @@ final class EmployeeShowController extends Controller
         }
 
 
+        // All private fields are in a dedicated tenant-checked store and only
+        // included in a direct, HR-authorized employee detail response.
+        $privateProfile = $extended ? $privateProfiles->read($company, $employee) : null;
+
         // A manager may view the basic card but not protected personnel development history.
         $experience = $extended ? DB::table('employee_experience')->where('employee_id', $employee)
             ->select('id','experience_type','started_on','ended_on','basis_reference','revision')
@@ -102,6 +108,7 @@ final class EmployeeShowController extends Controller
                     HrAuditAction::PersonnelEmployeeUpdated->value,
                     HrAuditAction::PersonnelProfileRecordCreated->value,
                     HrAuditAction::PersonnelProfileRecordUpdated->value,
+                    HrAuditAction::EmployeePrivateProfileUpdated->value,
                     HrAuditAction::PersonnelAssignmentCreated->value,
                     HrAuditAction::PersonnelAssignmentUpdated->value,
                     HrAuditAction::PersonnelAssignmentTransitioned->value,
@@ -121,6 +128,7 @@ final class EmployeeShowController extends Controller
             'experience' => $experience,
             'reserve' => $reserve,
             'training' => $training,
+            ...($extended ? ['private_profile' => $privateProfile] : []),
             'history' => $changes->take(100)->values(),
             'meta' => [
                 'history_limit' => 100,
@@ -129,6 +137,7 @@ final class EmployeeShowController extends Controller
                 'assignments_truncated' => $history->count() === 100,
                 'extended_sections_visible' => $extended,
                 'profile_writes_enabled' => $personnelWritesEnabled,
+                'private_profile_writes_enabled' => $personnelWritesEnabled,
                 'assignment_writes_enabled' => $personnelWritesEnabled,
                 'employee_writes_enabled' => $personnelWritesEnabled,
             ],
