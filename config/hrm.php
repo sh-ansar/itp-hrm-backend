@@ -10,6 +10,10 @@ return [
 
     'document_writes_enabled' => (bool) env('HRM_DOCUMENT_WRITES_ENABLED', false),
 
+    // Uploads always go to the private MinIO disk. Old local blobs are accessible
+    // only during an explicitly approved migration window, never by default.
+    'legacy_document_reads_enabled' => (bool) env('HRM_LEGACY_DOCUMENT_READS_ENABLED', false),
+
     // Worktime mutation endpoints are not released in the first read-only contract.
     'worktime_writes_enabled' => (bool) env('HRM_WORKTIME_WRITES_ENABLED', false),
 
