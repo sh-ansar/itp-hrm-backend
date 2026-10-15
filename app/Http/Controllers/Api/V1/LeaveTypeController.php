@@ -21,13 +21,21 @@ final class LeaveTypeController extends Controller
         WorkforceAuthorization $permissions,
     ): JsonResponse {
         $visibility->visibleFor($request->user(), $company);
-        $types = DB::table('leave_types')->where('company_id', $company)
-            ->select('id', 'code', 'name', 'annual_days', 'balance_method', 'revision')
+        $canReadProtected = $permissions->canReadProtectedLeaveDetails($request->user(), $company);
+        $query = DB::table('leave_types')->where('company_id', $company);
+        if (!$canReadProtected) {
+            $query->where('category', 'ordinary');
+        }
+        $types = $query->select('id', 'code', 'name', 'annual_days', 'balance_method', 'category', 'revision')
             ->orderBy('name')->get();
 
         return response()->json([
             'data' => $types,
-            'meta' => ['can_manage_leave_types' => $permissions->canApproveLeaveRequests($request->user(), $company)],
+            'meta' => [
+                'can_manage_leave_types' => $permissions->canApproveLeaveRequests($request->user(), $company),
+                'supported_categories' => $canReadProtected
+                    ? ['ordinary', 'maternity', 'childcare', 'medical'] : ['ordinary'],
+            ],
         ]);
     }
 
@@ -42,7 +50,7 @@ final class LeaveTypeController extends Controller
                 throw ValidationException::withMessages(['code' => 'The leave type code already exists.']);
             }
             DB::table('leave_types')->insert(array_merge($data, [
-                'id' => $id, 'company_id' => $company, 'revision' => 1,
+                'id' => $id, 'company_id' => $company, 'category' => $data['category'] ?? 'ordinary', 'revision' => 1,
                 'created_at' => now(), 'updated_at' => now(),
             ]));
             $audit->record($request->user(), $company, HrAuditAction::LeaveTypeCreated, null, [
@@ -50,6 +58,6 @@ final class LeaveTypeController extends Controller
             ]);
         }, 3);
 
-        return response()->json(['data' => array_merge($data, ['id' => $id, 'revision' => 1])], 201);
+        return response()->json(['data' => array_merge($data, ['id' => $id, 'category' => $data['category'] ?? 'ordinary', 'revision' => 1])], 201);
     }
 }
