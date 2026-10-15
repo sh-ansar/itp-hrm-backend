@@ -24,6 +24,7 @@ final class LeaveTypeStoreRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'annual_days' => ['present', 'nullable', 'integer', 'between:1,366'],
             'balance_method' => ['required', Rule::in(['calendar_days', 'working_days'])],
+            'category' => ['sometimes', Rule::in(['ordinary', 'maternity', 'childcare', 'medical'])],
         ];
     }
 }

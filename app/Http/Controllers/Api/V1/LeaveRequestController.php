@@ -34,7 +34,7 @@ final class LeaveRequestController extends Controller
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
                 'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
                 'lr.created_by_user_id', 'lt.name as leave_type_name',
-                'e.last_name', 'e.first_name', 'e.middle_name');
+                'e.last_name', 'e.first_name', 'e.middle_name', 'lt.category');
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
 
         $page = $query->orderByDesc('lr.created_at')->orderBy('lr.id')->paginate(50);
