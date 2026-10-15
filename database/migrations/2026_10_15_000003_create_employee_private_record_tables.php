@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /** Repeatable, private records from the source employee-card prototype. */
 return new class extends Migration
@@ -46,6 +47,11 @@ return new class extends Migration
                 ->references(['id', 'company_id'])->on('employees')->restrictOnDelete();
             $table->index(['company_id', 'employee_id', 'archived_at'], 'identity_active_by_employee');
         });
+
+        // PostgreSQL (production) and SQLite (CI) both support this partial index.
+        // Exactly one active primary identity document per employee, even for
+        // raw imports that bypass the Laravel domain transaction.
+        DB::statement('CREATE UNIQUE INDEX identity_one_current_primary ON employee_identity_documents (company_id, employee_id) WHERE is_primary AND archived_at IS NULL');
     }
 
     public function down(): void
