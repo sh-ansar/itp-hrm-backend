@@ -47,6 +47,7 @@ final class CompanyCapabilities
             'employees.write' => $staff && (bool) config('hrm.personnel_writes_enabled', false),
             'staffing.write' => $staff && (bool) config('hrm.personnel_writes_enabled', false),
             'documents.write' => $staff && (bool) config('hrm.document_writes_enabled', false),
+            'directories.write' => $staff && (bool) config('hrm.directory_writes_enabled', false),
             'worktime.calendar.edit' => $admin && (bool) config('hrm.worktime_writes_enabled', false),
             'leave.requests.manage' => $staff && (bool) config('hrm.leave_writes_enabled', false),
             'leave.requests.approve' => $admin && (bool) config('hrm.leave_writes_enabled', false),

@@ -24,6 +24,9 @@ return [
     // Financially sensitive proposals remain disabled until explicit deployment approval.
     'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),
 
+    // Company-scoped reference/catalogue editor; fail closed by default.
+    'directory_writes_enabled' => (bool) env('HRM_DIRECTORY_WRITES_ENABLED', false),
+
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
 
     // Opt-in only after SMTP transport and public reset-link tests succeed.

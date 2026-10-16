@@ -58,4 +58,7 @@ enum HrAuditAction: string
     case EmployeeBonusCancelled = 'compensation.bonus_cancelled';
     case EmployeeBonusApproved = 'compensation.bonus_approved';
     case EmployeeBonusRejected = 'compensation.bonus_rejected';
+    case DirectoryEntryCreated = 'directory.entry_created';
+    case DirectoryEntryUpdated = 'directory.entry_updated';
+    case DirectoryEntryDeleted = 'directory.entry_deleted';
 }

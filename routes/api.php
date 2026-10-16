@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\CompanyMembershipController;
+use App\Http\Controllers\Api\V1\CompanyDirectoryController;
 use App\Http\Controllers\Api\V1\CompanyIndexController;
 use App\Http\Controllers\Api\V1\CurrentAccessController;
 use App\Http\Controllers\Api\V1\DepartmentIndexController;
@@ -46,6 +47,15 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/me/access', CurrentAccessController::class);
         Route::get('/companies', CompanyIndexController::class);
+        Route::get('/companies/{company}/directories/{group}', [CompanyDirectoryController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/directories/{group}', [CompanyDirectoryController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/directories/{group}/{entry}', [CompanyDirectoryController::class, 'update'])
+            ->whereUuid('company')->whereUuid('entry');
+        Route::delete('/companies/{company}/directories/{group}/{entry}', [CompanyDirectoryController::class, 'destroy'])
+            ->whereUuid('company')->whereUuid('entry');
+
         Route::get('/companies/{company}/positions', PositionIndexController::class)->whereUuid('company');
         Route::post('/companies/{company}/positions', [PositionRecordController::class, 'store'])
             ->whereUuid('company');
