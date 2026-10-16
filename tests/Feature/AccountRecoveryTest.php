@@ -16,7 +16,7 @@ final class AccountRecoveryTest extends TestCase
     use RefreshDatabase;
 
     private const OLD_PASSWORD = 'Synthetic!RecoveryOld123';
-    private const NEW_PASSWORD = 'Synthetic!RecoveryNew456';
+    private const NEW_PASSWORD = 'simple!1';
 
     protected function setUp(): void
     {
