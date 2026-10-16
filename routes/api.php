@@ -199,6 +199,9 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')->whereUuid('employee')->whereUuid('record')
             ->whereIn('section', ['experience', 'reserve', 'training']);
 
+        Route::get('/companies/{company}/memberships', [CompanyMembershipController::class, 'index'])
+            ->whereUuid('company');
+
         Route::put('/companies/{company}/memberships/{member}', [CompanyMembershipController::class, 'upsert'])
             ->whereUuid('company')
             ->whereNumber('member');
