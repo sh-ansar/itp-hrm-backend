@@ -25,7 +25,8 @@ final class CompanyCapabilities
 
         return [
             // Only routes with confirmed backend read contracts are visible
-            // in connected mode. The reports UI remains demo-only.
+            // in connected mode. Reports use the already authorized employee, staffing,
+            // personnel-action, development and worktime read contracts.
             'overview.view' => $limitedStaff,
             'employees.view' => $limitedStaff,
             'employees.extended_view' => $staff,
@@ -37,7 +38,7 @@ final class CompanyCapabilities
             'documents.view' => $staff,
             'directories.view' => $staff,
             'development.view' => $staff,
-            'reports.view' => false,
+            'reports.view' => $staff,
             'settings.view' => true,
             // Role matrix is still prototype-only; no production UI grant.
             'roles.interface' => $admin && (bool) config('hrm.role_management_enabled', false),

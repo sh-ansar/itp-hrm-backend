@@ -53,7 +53,8 @@ final class EffectiveCompanyCapabilitiesTest extends TestCase
         $this->assertFalse($admin['roles.assign']);
         $this->assertFalse($hr['leave.requests.approve']);
         $this->assertFalse($admin['roles.interface']);
-        $this->assertFalse($admin['reports.view']);
+        $this->assertTrue($admin['reports.view']);
+        $this->assertTrue($hr['reports.view']);
 
         config()->set('hrm.worktime_writes_enabled', true);
         config()->set('hrm.leave_writes_enabled', true);
@@ -94,6 +95,7 @@ final class EffectiveCompanyCapabilitiesTest extends TestCase
         $this->assertTrue($data['capabilities']['worktime.view']);
         $this->assertFalse($data['capabilities']['staffing.view']);
         $this->assertFalse($data['capabilities']['documents.view']);
+        $this->assertFalse($data['capabilities']['reports.view']);
         $this->assertFalse($data['capabilities']['employees.write']);
     }
 
