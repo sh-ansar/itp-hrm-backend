@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\V1\LeaveTypeController;
 use App\Http\Controllers\Api\V1\EmployeeBonusController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\EmployeeSelfServiceController;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', static fn () => response()->json([
@@ -53,6 +54,14 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me/preferences', [UserPreferencesController::class, 'show']);
         Route::put('/me/preferences', [UserPreferencesController::class, 'update']);
         Route::get('/companies', CompanyIndexController::class);
+        Route::get('/companies/{company}/me/workspace', [EmployeeSelfServiceController::class, 'show'])->whereUuid('company');
+        Route::post('/companies/{company}/me/leave-requests', [EmployeeSelfServiceController::class, 'save'])->whereUuid('company');
+        Route::put('/companies/{company}/me/leave-requests/{leaveRequest}', [EmployeeSelfServiceController::class, 'save'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/me/leave-requests/{leaveRequest}/{action}', [EmployeeSelfServiceController::class, 'transition'])
+            ->whereUuid('company')->whereUuid('leaveRequest')->whereIn('action', ['submit', 'cancel']);
+        Route::match(['get', 'put'], '/companies/{company}/memberships/{user}/employee-link', [EmployeeSelfServiceController::class, 'link'])
+            ->whereUuid('company')->whereNumber('user');
         Route::get('/companies/{company}/directories/{group}', [CompanyDirectoryController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/directories/{group}', [CompanyDirectoryController::class, 'store'])

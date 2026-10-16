@@ -87,3 +87,10 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - Optional employee-register `contract_expiry_days=30|60|90`, default 30, counts only the existing authorized employee query. Manager aggregates remain null; cross-company requests remain forbidden.
 - Isolated SQLite contract tests: 7 passed, 61 assertions. CI must also pass PostgreSQL before merge; paired frontend verifies selector, server count, edit and reload.
 - Compact route/scenario map: `docs/PRODUCTION-SCENARIOS-20261016.md`. Production acceptance is limited to the evidence recorded there.
+
+## Employee self-service — 16 October 2026
+- Additive `employee_user_links`: explicit company-admin assignment, tenant FK, one account per employee/company, optimistic revision and transactional audit. No email/name matching. Revoked membership cannot use a retained link.
+- Own workspace exposes only linked employee identity, own submitted correspondence and confirmed leave; never private profiles, HR planning notes or other employees. Company membership is enforced independently of navigation.
+- Own draft/edit/submit/cancel endpoints reuse `LeavePlanWorkflow`, day policies, overlap/revision guards and existing HR/admin decisions. Four-eyes now also excludes an approver's own linked employee record, even when HR created its request.
+- Isolated security/workflow tests cover forged identities, cross-company links, duplicate/stale links, unlinked/revoked access, own revisions and approved projection. SQLite and PostgreSQL CI required before merge.
+- Next: broader own-data tabs (timekeeping and permitted personal documents), leave accrual/reversal rules remain separate work; do not invent balances.

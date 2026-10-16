@@ -124,6 +124,9 @@ final class LeavePlanWorkflow
             // Four-eyes control is enforced by the server, not inferred from a button.
             abort_if((int) $record->created_by_user_id === (int) $actor->getAuthIdentifier(), 403,
                 'A person cannot approve or reject their own leave request.');
+            abort_if(DB::table('employee_user_links')->where('company_id', $company)
+                ->where('user_id', $actor->getAuthIdentifier())->where('employee_id', $record->employee_id)->exists(), 403,
+                'A person cannot decide leave for their own employee record.');
 
             $publishedLeave = null;
             if ($decision === 'approved') {

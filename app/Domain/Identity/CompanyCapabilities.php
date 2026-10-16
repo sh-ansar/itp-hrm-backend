@@ -40,6 +40,7 @@ final class CompanyCapabilities
             'development.view' => $staff,
             'reports.view' => $staff,
             'settings.view' => true,
+            'self_service.view' => true,
             // Role matrix is still prototype-only; no production UI grant.
             'roles.interface' => $admin && (bool) config('hrm.role_management_enabled', false),
 

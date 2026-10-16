@@ -4,6 +4,7 @@ namespace App\Domain\Audit;
 
 enum HrAuditAction: string
 {
+    case EmployeeAccountLinked = 'personnel.account_linked';
     case RoleGranted = 'company.role_granted';
     case RoleChanged = 'company.role_changed';
     case RoleRevoked = 'company.role_revoked';
