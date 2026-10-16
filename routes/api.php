@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
 use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
 use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
+use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
@@ -48,6 +49,8 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/me/access', CurrentAccessController::class);
+        Route::get('/me/preferences', [UserPreferencesController::class, 'show']);
+        Route::put('/me/preferences', [UserPreferencesController::class, 'update']);
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/directories/{group}', [CompanyDirectoryController::class, 'index'])
             ->whereUuid('company');
