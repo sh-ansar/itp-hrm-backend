@@ -467,4 +467,62 @@ class AuditedCompanyRoleAssignmentsTest extends TestCase
             ->putJson($this->url($b, $target), ['role_code' => 'not-valid'])
             ->assertForbidden();
     }
+
+    public function test_company_admin_can_list_real_memberships_scopes_and_role_audit(): void
+    {
+        $company = $this->company('A');
+        $admin = $this->admin($company);
+        $member = User::factory()->create([
+            'name' => 'Synthetic Member',
+            'email' => 'member@example.test',
+        ]);
+        $department = $this->department($company, 'Operations');
+
+        $this->actingAs($admin)
+            ->putJson($this->url($company, $member), $this->payload('department_manager', [$department]))
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->getJson("/api/v1/companies/{$company}/memberships")
+            ->assertOk()
+            ->assertJsonPath('meta.role_management_enabled', true)
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonFragment([
+                'user_id' => $member->id,
+                'name' => 'Synthetic Member',
+                'email' => 'member@example.test',
+                'role_code' => 'department_manager',
+            ])
+            ->assertJsonFragment([
+                'id' => $department,
+                'name' => 'Operations',
+            ])
+            ->assertJsonFragment([
+                'action' => HrAuditAction::RoleGranted->value,
+                'actor' => $admin->name,
+                'subject' => 'Synthetic Member',
+            ]);
+    }
+
+    public function test_membership_list_is_hidden_when_feature_is_disabled(): void
+    {
+        config()->set('hrm.role_management_enabled', false);
+        $company = $this->company('A');
+        $admin = $this->admin($company);
+
+        $this->actingAs($admin)
+            ->getJson("/api/v1/companies/{$company}/memberships")
+            ->assertNotFound();
+    }
+
+    public function test_non_admin_cannot_list_company_memberships(): void
+    {
+        $company = $this->company('A');
+        $hr = User::factory()->create();
+        $this->grant($hr, $company, CompanyRole::HrSpecialist);
+
+        $this->actingAs($hr)
+            ->getJson("/api/v1/companies/{$company}/memberships")
+            ->assertForbidden();
+    }
 }
