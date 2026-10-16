@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Identity\CompanyRole;
 use App\Domain\Identity\CompanyRoleAssignments;
+use App\Domain\Identity\CompanyCapabilities;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ final class CompanyMembershipController extends Controller
         Request $request,
         string $company,
         CompanyRoleAssignments $roles,
+        CompanyCapabilities $capabilities,
     ): JsonResponse {
         $this->authorizeManagement($request, $company, $roles);
 
@@ -126,6 +128,11 @@ final class CompanyMembershipController extends Controller
                 'role_management_enabled' => (bool) config('hrm.role_management_enabled', false),
             ],
             'audit' => $audit,
+            'roles' => collect(CompanyRole::cases())->map(static fn (CompanyRole $role): array => [
+                'code' => $role->value,
+                'capabilities' => $capabilities->forRole($role),
+                'assignable' => $role !== CompanyRole::CompanyAdmin,
+            ])->values()->all(),
         ]);
     }
 
