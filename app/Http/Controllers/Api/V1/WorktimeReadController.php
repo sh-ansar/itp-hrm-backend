@@ -153,7 +153,8 @@ final class WorktimeReadController extends Controller
                 ->groupBy('ws.id', 'ws.code', 'ws.name', 'ws.schedule_type', 'ws.work_time_label', 'ws.weekly_minutes', 'ws.revision')
                 ->orderBy('ws.name')->orderBy('ws.id')->get();
         }
-            ->map(static fn (object $row): array => [
+
+        $rows = $rows->map(static fn (object $row): array => [
                 'id' => $row->id,
                 'code' => $row->code,
                 'name' => $row->name,
