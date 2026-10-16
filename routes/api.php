@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
 use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
+use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
@@ -83,6 +84,12 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')->whereUuid('employee');
         Route::get('/companies/{company}/worktime/schedules', [WorktimeReadController::class, 'schedules'])
             ->whereUuid('company');
+        Route::post('/companies/{company}/worktime/schedules', [WorkScheduleWriteController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/worktime/schedules/{schedule}', [WorkScheduleWriteController::class, 'update'])
+            ->whereUuid('company')->whereUuid('schedule');
+        Route::put('/companies/{company}/worktime/schedules/{schedule}/employees/{employee}', [WorkScheduleWriteController::class, 'assign'])
+            ->whereUuid('company')->whereUuid('schedule')->whereUuid('employee');
         Route::get('/companies/{company}/worktime/calendar', [WorktimeReadController::class, 'calendar'])
             ->whereUuid('company');
         Route::put('/companies/{company}/worktime/calendar', ProductionCalendarWriteController::class)
