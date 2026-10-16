@@ -40,7 +40,7 @@ final class CompanyCapabilities
             'reports.view' => false,
             'settings.view' => true,
             // Role matrix is still prototype-only; no production UI grant.
-            'roles.interface' => false,
+            'roles.interface' => $admin && (bool) config('hrm.role_management_enabled', false),
 
             // Server-side write contracts; flags default OFF. Read these to
             // show relevant UI, but ALWAYS re-authorize the request on backend.
