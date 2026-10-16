@@ -98,7 +98,6 @@ final class WorktimeReadController extends Controller
                 'month' => $validated['month'],
                 'summary' => $summary,
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
-                'can_manage_schedules' => $permissions->canEditTimesheet($request->user(), $company),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
@@ -174,6 +173,7 @@ final class WorktimeReadController extends Controller
                 'as_of' => $asOf,
                 'total' => $rows->count(),
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'can_manage_schedules' => $permissions->canEditTimesheet($request->user(), $company),
             ],
         ]);
     }
