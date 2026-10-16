@@ -21,6 +21,7 @@ final class WorktimeReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
+        WorkforceAuthorization $permissions,
     ): JsonResponse {
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
@@ -98,6 +99,7 @@ final class WorktimeReadController extends Controller
                 'month' => $validated['month'],
                 'summary' => $summary,
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'can_manage_schedules' => $permissions->canEditTimesheet($request->user(), $company),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
@@ -117,37 +119,40 @@ final class WorktimeReadController extends Controller
         ]);
         $asOf = (string) ($validated['as_of'] ?? now()->toDateString());
 
-        $rows = DB::query()
-            ->fromSub($visibility->visibleFor($request->user(), $company), 've')
-            ->join('employee_work_schedules as ews', 'ews.employee_id', '=', 've.id')
-            ->join('work_schedules as ws', function (JoinClause $join) use ($company): void {
-                $join->on('ws.id', '=', 'ews.work_schedule_id')
-                    ->where('ws.company_id', '=', $company);
-            })
-            ->where('ews.valid_from', '<=', $asOf)
-            ->where(function (Builder $dates) use ($asOf): void {
-                $dates->whereNull('ews.valid_to')->orWhere('ews.valid_to', '>=', $asOf);
-            })
-            ->select(
-                'ws.id',
-                'ws.code',
-                'ws.name',
-                'ws.schedule_type',
-                'ws.work_time_label',
-                'ws.weekly_minutes',
-            )
-            ->selectRaw('COUNT(DISTINCT ve.id) as employees')
-            ->groupBy(
-                'ws.id',
-                'ws.code',
-                'ws.name',
-                'ws.schedule_type',
-                'ws.work_time_label',
-                'ws.weekly_minutes',
-            )
-            ->orderBy('ws.name')
-            ->orderBy('ws.id')
-            ->get()
+        if ($permissions->canEditTimesheet($request->user(), $company)) {
+            $rows = DB::table('work_schedules as ws')
+                ->leftJoin('employee_work_schedules as ews', function (JoinClause $join) use ($asOf): void {
+                    $join->on('ews.work_schedule_id', '=', 'ws.id')
+                        ->where('ews.valid_from', '<=', $asOf)
+                        ->where(function ($dates) use ($asOf): void {
+                            $dates->whereNull('ews.valid_to')->orWhere('ews.valid_to', '>=', $asOf);
+                        });
+                })
+                ->leftJoin('employees as employee', function (JoinClause $join) use ($company): void {
+                    $join->on('employee.id', '=', 'ews.employee_id')
+                        ->where('employee.company_id', '=', $company);
+                })
+                ->where('ws.company_id', $company)
+                ->select('ws.id', 'ws.code', 'ws.name', 'ws.schedule_type', 'ws.work_time_label', 'ws.weekly_minutes', 'ws.revision')
+                ->selectRaw('COUNT(DISTINCT employee.id) as employees')
+                ->groupBy('ws.id', 'ws.code', 'ws.name', 'ws.schedule_type', 'ws.work_time_label', 'ws.weekly_minutes', 'ws.revision')
+                ->orderBy('ws.name')->orderBy('ws.id')->get();
+        } else {
+            $rows = DB::query()
+                ->fromSub($visibility->visibleFor($request->user(), $company), 've')
+                ->join('employee_work_schedules as ews', 'ews.employee_id', '=', 've.id')
+                ->join('work_schedules as ws', function (JoinClause $join) use ($company): void {
+                    $join->on('ws.id', '=', 'ews.work_schedule_id')->where('ws.company_id', '=', $company);
+                })
+                ->where('ews.valid_from', '<=', $asOf)
+                ->where(function (Builder $dates) use ($asOf): void {
+                    $dates->whereNull('ews.valid_to')->orWhere('ews.valid_to', '>=', $asOf);
+                })
+                ->select('ws.id', 'ws.code', 'ws.name', 'ws.schedule_type', 'ws.work_time_label', 'ws.weekly_minutes', 'ws.revision')
+                ->selectRaw('COUNT(DISTINCT ve.id) as employees')
+                ->groupBy('ws.id', 'ws.code', 'ws.name', 'ws.schedule_type', 'ws.work_time_label', 'ws.weekly_minutes', 'ws.revision')
+                ->orderBy('ws.name')->orderBy('ws.id')->get();
+        }
             ->map(static fn (object $row): array => [
                 'id' => $row->id,
                 'code' => $row->code,
@@ -155,6 +160,7 @@ final class WorktimeReadController extends Controller
                 'schedule_type' => $row->schedule_type,
                 'work_time_label' => $row->work_time_label,
                 'weekly_minutes' => $row->weekly_minutes !== null ? (int) $row->weekly_minutes : null,
+                'revision' => (int) $row->revision,
                 'employees' => (int) $row->employees,
             ])
             ->values();
