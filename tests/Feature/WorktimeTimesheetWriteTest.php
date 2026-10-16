@@ -1,0 +1,201 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+final class WorktimeTimesheetWriteTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function fixture(string $role = 'company_admin'): array
+    {
+        $user = User::factory()->create();
+        $company = (string) Str::uuid();
+        $employee = (string) Str::uuid();
+
+        DB::table('companies')->insert(['id' => $company, 'name' => 'Synthetic Company']);
+        DB::table('company_user_roles')->insert([
+            'user_id' => $user->id,
+            'company_id' => $company,
+            'role_code' => $role,
+        ]);
+        DB::table('employees')->insert([
+            'id' => $employee,
+            'company_id' => $company,
+            'personnel_number' => 'SYN-001',
+            'last_name' => 'Synthetic',
+            'first_name' => 'Employee',
+            'revision' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        foreach (['2026-10-15', '2026-10-16'] as $date) {
+            DB::table('production_calendar_days')->insert([
+                'id' => (string) Str::uuid(),
+                'company_id' => $company,
+                'work_date' => $date,
+                'day_type' => 'workday',
+                'planned_minutes' => 480,
+                'label' => null,
+                'revision' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return [$user, $company, $employee, "/api/v1/companies/{$company}/worktime/timesheet/{$employee}"];
+    }
+
+    private function day(string $date = '2026-10-15', ?int $revision = null, array $overrides = []): array
+    {
+        return array_merge([
+            'date' => $date,
+            'worked_minutes' => 480,
+            'absence_minutes' => 0,
+            'overtime_minutes' => 0,
+            'revision' => $revision,
+        ], $overrides);
+    }
+
+    public function test_timesheet_writes_are_fail_closed(): void
+    {
+        [$user, , , $url] = $this->fixture();
+
+        $this->actingAs($user)->getJson($url.'?month=2026-10')->assertNotFound();
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day()],
+        ])->assertNotFound();
+
+        $this->assertDatabaseCount('worktime_entries', 0);
+    }
+
+    public function test_company_admin_and_hr_can_edit_but_employee_cannot(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+
+        [$admin, , , $adminUrl] = $this->fixture('company_admin');
+        $this->actingAs($admin)->putJson($adminUrl, [
+            'month' => '2026-10',
+            'days' => [$this->day()],
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+
+        [$hr, , , $hrUrl] = $this->fixture('hr_specialist');
+        $this->actingAs($hr)->putJson($hrUrl, [
+            'month' => '2026-10',
+            'days' => [$this->day()],
+        ])->assertOk();
+
+        [$employeeUser, , , $employeeUrl] = $this->fixture('employee');
+        $this->actingAs($employeeUser)->getJson($employeeUrl.'?month=2026-10')->assertForbidden();
+        $this->actingAs($employeeUser)->putJson($employeeUrl, [
+            'month' => '2026-10',
+            'days' => [$this->day()],
+        ])->assertForbidden();
+    }
+
+    public function test_create_read_update_and_audit_daily_entries(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, $company, $employee, $url] = $this->fixture();
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [
+                $this->day('2026-10-15'),
+                $this->day('2026-10-16', null, ['worked_minutes' => 420, 'overtime_minutes' => 60]),
+            ],
+        ])->assertOk()
+            ->assertJsonPath('meta.created_count', 2)
+            ->assertJsonPath('meta.updated_count', 0)
+            ->assertJsonPath('data.0.revision', 1)
+            ->assertJsonPath('data.1.overtime_minutes', 60);
+
+        $this->actingAs($user)->getJson($url.'?month=2026-10')
+            ->assertOk()
+            ->assertJsonPath('meta.can_edit', true)
+            ->assertJsonPath('data.0.worked_minutes', 480)
+            ->assertJsonPath('data.1.worked_minutes', 420);
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [
+                $this->day('2026-10-15', 1, ['worked_minutes' => 360, 'absence_minutes' => 120]),
+            ],
+        ])->assertOk()
+            ->assertJsonPath('meta.updated_count', 1)
+            ->assertJsonPath('data.0.revision', 2)
+            ->assertJsonPath('data.0.absence_minutes', 120);
+
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee,
+            'work_date' => '2026-10-15',
+            'planned_minutes' => 480,
+            'worked_minutes' => 360,
+            'absence_minutes' => 120,
+            'revision' => 2,
+        ]);
+        $this->assertSame(2, DB::table('hr_audit_events')
+            ->where('company_id', $company)
+            ->where('action', 'worktime.entries_upserted')
+            ->count());
+    }
+
+    public function test_stale_revision_rejects_entire_batch(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, , $employee, $url] = $this->fixture();
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-15')],
+        ])->assertOk();
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [
+                $this->day('2026-10-15', 7, ['worked_minutes' => 300]),
+                $this->day('2026-10-16', null),
+            ],
+        ])->assertStatus(409);
+
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee,
+            'work_date' => '2026-10-15',
+            'worked_minutes' => 480,
+            'revision' => 1,
+        ]);
+        $this->assertDatabaseMissing('worktime_entries', [
+            'employee_id' => $employee,
+            'work_date' => '2026-10-16',
+        ]);
+    }
+
+    public function test_missing_calendar_and_invalid_absence_are_rejected(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, $company, , $url] = $this->fixture();
+
+        DB::table('production_calendar_days')
+            ->where('company_id', $company)
+            ->where('work_date', '2026-10-16')
+            ->delete();
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-16')],
+        ])->assertUnprocessable();
+
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-15', null, ['absence_minutes' => 600, 'worked_minutes' => 0])],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('worktime_entries', 0);
+    }
+}
