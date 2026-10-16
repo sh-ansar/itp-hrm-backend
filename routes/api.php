@@ -35,6 +35,11 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/health', static fn () => response()->json([
         'status' => 'ok',
         'service' => 'itp-hrm-api',
+        // Frontend must not expose credential entry while the independent
+        // HRM login feature remains explicitly disabled on the server.
+        'capabilities' => [
+            'browser_login' => (bool) config('hrm.browser_login_enabled', false),
+        ],
     ]));
 
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {

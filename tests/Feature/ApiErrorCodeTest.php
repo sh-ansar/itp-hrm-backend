@@ -36,7 +36,7 @@ class ApiErrorCodeTest extends TestCase
     {
         $this->getJson('/api/v1/health')
             ->assertOk()
-            ->assertExactJson(['status' => 'ok', 'service' => 'itp-hrm-api'])
+            ->assertJson(['status' => 'ok', 'service' => 'itp-hrm-api'])
             ->assertHeaderMissing('X-Error-Code');
     }
 }
