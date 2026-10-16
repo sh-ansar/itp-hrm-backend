@@ -16,7 +16,7 @@ final class ChangeOwnPasswordController extends Controller
         $validated = $request->validate([
             'current_password' => ['required', 'string', 'max:1024'],
             'password' => ['required', 'string', 'max:1024', 'confirmed',
-                Password::min(12)->mixedCase()->numbers()->symbols()],
+                Password::min(8)->numbers()->symbols()],
         ]);
 
         $user = $request->user();
