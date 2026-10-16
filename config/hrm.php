@@ -26,6 +26,10 @@ return [
 
     'browser_login_enabled' => (bool) env('HRM_BROWSER_LOGIN_ENABLED', false),
 
+    // Opt-in only after SMTP transport and public reset-link tests succeed.
+    'password_reset_enabled' => (bool) env('HRM_PASSWORD_RESET_ENABLED', false),
+    'frontend_url' => env('HRM_FRONTEND_URL', 'https://platform.itpmining.kz/hrm'),
+
     // Use a distinct XSRF cookie when HRM shares a hostname with other apps.
     // Existing independent environments retain the Laravel default.
     'xsrf_cookie_name' => env('HRM_XSRF_COOKIE_NAME', 'XSRF-TOKEN'),
