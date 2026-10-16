@@ -183,6 +183,42 @@ final class EmployeeContractTest extends TestCase
         $this->assertSame($employee, $response->json('data.0.id'));
     }
 
+    public function test_expiry_windows_count_only_authorized_current_contracts(): void
+    {
+        config()->set('hrm.personnel_writes_enabled', true);
+        [$user, $company, $employee] = $this->fixture();
+        $this->actingAs($user)
+            ->postJson("/api/v1/companies/{$company}/employees/{$employee}/contracts", $this->payload([
+                'valid_to' => now()->addDays(45)->toDateString(),
+            ]))->assertCreated();
+
+        foreach ([30 => 0, 60 => 1, 90 => 1] as $days => $count) {
+            $this->getJson("/api/v1/companies/{$company}/employees?contract_expiry_days={$days}")
+                ->assertOk()
+                ->assertJsonPath('meta.registry_summary.expiring_contracts', $count)
+                ->assertJsonPath('meta.registry_summary.expiring_contracts_days', $days);
+        }
+        // The optional query preserves the existing default contract.
+        $this->getJson("/api/v1/companies/{$company}/employees")
+            ->assertJsonPath('meta.registry_summary.expiring_contracts', 0)
+            ->assertJsonPath('meta.registry_summary.expiring_contracts_days', 30);
+
+        foreach ([0, 31, 365, 'invalid'] as $invalid) {
+            $this->getJson("/api/v1/companies/{$company}/employees?contract_expiry_days={$invalid}")
+                ->assertUnprocessable()->assertJsonValidationErrors('contract_expiry_days');
+        }
+        $otherCompany = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $otherCompany, 'name' => 'Other Company']);
+        $this->getJson("/api/v1/companies/{$otherCompany}/employees?contract_expiry_days=90")
+            ->assertForbidden();
+
+        // Manager sees no legal contract aggregate, even with a wider window.
+        DB::table('company_user_roles')->where('user_id', $user->id)
+            ->where('company_id', $company)->update(['role_code' => 'department_manager']);
+        $this->getJson("/api/v1/companies/{$company}/employees?contract_expiry_days=90")
+            ->assertOk()->assertJsonPath('meta.registry_summary.expiring_contracts', null);
+    }
+
     public function test_department_manager_cannot_read_legal_contract_details(): void
     {
         config()->set('hrm.personnel_writes_enabled', true);

@@ -81,3 +81,9 @@ Next steps: agree staging HTTPS origin and trusted proxy; run browser E2E agains
 
 ### Next maintainer priority
 Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity/military document attachments and leave/attendance corrections without inventing statutory rules. Apply all migrations only on disposable CI or approved project-owned DBs. Do not declare production readiness.
+
+## Contract expiry windows — 16 October 2026
+- Employment contracts use the existing normalized, versioned `employee_contracts` model and HR-only endpoints; no duplicate employee fields or new migration.
+- Optional employee-register `contract_expiry_days=30|60|90`, default 30, counts only the existing authorized employee query. Manager aggregates remain null; cross-company requests remain forbidden.
+- Isolated SQLite contract tests: 7 passed, 61 assertions. CI must also pass PostgreSQL before merge; paired frontend verifies selector, server count, edit and reload.
+- Compact route/scenario map: `docs/PRODUCTION-SCENARIOS-20261016.md`. Production acceptance is limited to the evidence recorded there.

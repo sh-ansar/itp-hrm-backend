@@ -26,6 +26,7 @@ final class EmployeeIndexController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', 'in:all,active,planned,archived,unassigned'],
+            'contract_expiry_days' => ['sometimes', 'integer', 'in:30,60,90'],
         ]);
 
         $today = now()->toDateString();
@@ -191,7 +192,7 @@ final class EmployeeIndexController extends Controller
             );
 
         $expiringContracts = null;
-        $contractExpiryDays = 30;
+        $contractExpiryDays = (int) ($validated['contract_expiry_days'] ?? 30);
         if ($extended) {
             $expiryTo = now()->addDays($contractExpiryDays)->toDateString();
             $expiringContracts = (clone $query)
