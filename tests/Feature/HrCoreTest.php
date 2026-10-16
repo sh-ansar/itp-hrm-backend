@@ -16,7 +16,8 @@ class HrCoreTest extends TestCase
     {
         $this->getJson('/api/v1/health')
             ->assertOk()
-            ->assertExactJson(['status' => 'ok', 'service' => 'itp-hrm-api']);
+            ->assertJson(['status' => 'ok', 'service' => 'itp-hrm-api'])
+            ->assertJsonPath('capabilities.browser_login', false);
     }
 
     public function test_hr_core_schema_and_employee_number_uniqueness(): void
