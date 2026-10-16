@@ -21,7 +21,6 @@ final class WorktimeReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
-        WorkforceAuthorization $permissions,
     ): JsonResponse {
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
@@ -113,6 +112,7 @@ final class WorktimeReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
+        WorkforceAuthorization $permissions,
     ): JsonResponse {
         $validated = $request->validate([
             'as_of' => ['sometimes', 'date_format:Y-m-d'],
