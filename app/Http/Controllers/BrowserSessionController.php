@@ -6,7 +6,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 final class BrowserSessionController extends Controller
@@ -63,6 +66,46 @@ final class BrowserSessionController extends Controller
         return response()->json([
             'data' => $this->safeUser($request),
         ]);
+    }
+
+    /** Change the authenticated user's password without email or public reset links. */
+    public function changePassword(Request $request): Response
+    {
+        $user = $request->user('web');
+        $limitKey = 'hrm:password-change:'.hash('sha256', (string) $user->getAuthIdentifier().'|'.($request->ip() ?? 'unknown'));
+
+        if (RateLimiter::tooManyAttempts($limitKey, 5)) {
+            return response()->noContent(429)->header('Retry-After', (string) max(1, RateLimiter::availableIn($limitKey)));
+        }
+
+        $validated = $request->validate([
+            'current_password' => ['required', 'string', 'max:1024'],
+            'new_password' => ['required', 'string', 'max:1024', 'confirmed', Password::min(14)->mixedCase()->numbers()->symbols()],
+        ]);
+
+        if (!Hash::check($validated['current_password'], $user->getAuthPassword())) {
+            RateLimiter::hit($limitKey, 300);
+            throw ValidationException::withMessages(['current_password' => 'Текущий пароль указан неверно.']);
+        }
+        if (Hash::check($validated['new_password'], $user->getAuthPassword())) {
+            throw ValidationException::withMessages(['new_password' => 'Новый пароль должен отличаться от текущего.']);
+        }
+
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $user->forceFill([
+                'password' => Hash::make($validated['new_password']),
+                'remember_token' => \Illuminate\Support\Str::random(60),
+            ])->save();
+
+            // Revoke every other HRM session. The regenerated current session
+            // is persisted after this request; it is the only remaining login.
+            $request->session()->regenerate();
+            DB::table('sessions')->where('user_id', $user->getAuthIdentifier())
+                ->where('id', '!=', $request->session()->getId())->delete();
+        });
+        RateLimiter::clear($limitKey);
+
+        return response()->noContent();
     }
 
     public function current(Request $request): JsonResponse

@@ -288,6 +288,57 @@ class BrowserSessionAuthTest extends TestCase
             ->assertStatus(419);
     }
 
+    public function test_password_change_requires_authenticated_account(): void
+    {
+        $this->postJson('/auth/password', [])->assertUnauthorized();
+        config()->set('hrm.browser_login_enabled', false);
+        $this->actingAs($this->user())->postJson('/auth/password', [])->assertNotFound();
+    }
+
+    public function test_password_rotation_succeeds_only_with_current_secret(): void
+    {
+        $user = $this->user();
+        $previous = $this->loginPayload()['password'];
+        $next = 'New!'.Str::random(18).'9a';
+        $this->actingAs($user)->postJson('/auth/password', [
+            'current_password' => $previous,
+            'new_password' => $next,
+            'new_password_confirmation' => $next,
+        ])->assertNoContent();
+        $this->assertTrue(Hash::check($next, $user->fresh()->password));
+        $this->assertFalse(Hash::check($previous, $user->fresh()->password));
+        $this->getJson('/auth/me')->assertOk();
+    }
+
+    public function test_password_rotation_rejects_bad_old_secret_and_weak_new_secret(): void
+    {
+        $user = $this->user();
+        $current = $this->loginPayload()['password'];
+        $next = 'New!'.Str::random(18).'9a';
+        $this->actingAs($user)->postJson('/auth/password', [
+            'current_password' => Str::random(30),
+            'new_password' => $next,
+            'new_password_confirmation' => $next,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['current_password']);
+        $this->postJson('/auth/password', [
+            'current_password' => $current,
+            'new_password' => 'short',
+            'new_password_confirmation' => 'short',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['new_password']);
+        $this->assertTrue(Hash::check($current, $user->fresh()->password));
+    }
+
+    public function test_password_rotation_is_rate_limited_and_requires_csrf(): void
+    {
+        $this->app->bind(IsolatedXsrfCookie::class, StrictCsrfForTest::class);
+        $user = $this->user();
+        $this->actingAs($user)->postJson('/auth/password', [
+            'current_password' => $this->loginPayload()['password'],
+            'new_password' => 'New!'.Str::random(20).'7a',
+            'new_password_confirmation' => 'mismatch',
+        ])->assertStatus(419);
+    }
+
     public function test_preflight_cors_does_not_trust_arbitrary_origins(): void
     {
         $this->withHeaders([
