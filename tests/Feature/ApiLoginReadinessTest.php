@@ -15,20 +15,27 @@ final class ApiLoginReadinessTest extends TestCase
             ->assertExactJson([
                 'status' => 'ok',
                 'service' => 'itp-hrm-api',
-                'capabilities' => ['browser_login' => false],
+                'capabilities' => [
+                    'browser_login' => false,
+                    'password_reset' => false,
+                ],
             ]);
-        $response->assertDontSee('email')->assertDontSee('password');
+        $response->assertDontSee('email')
+            ->assertDontSee('credential')
+            ->assertDontSee('token');
 
         // The login endpoint remains closed; observing health does not enable it.
         $this->postJson('/auth/login', [])->assertNotFound();
     }
 
-    public function test_health_check_reflects_explicit_browser_login_activation(): void
+    public function test_health_check_reflects_explicit_auth_capability_activation(): void
     {
         config()->set('hrm.browser_login_enabled', true);
+        config()->set('hrm.password_reset_enabled', true);
 
         $this->getJson('/api/v1/health')
             ->assertOk()
-            ->assertJsonPath('capabilities.browser_login', true);
+            ->assertJsonPath('capabilities.browser_login', true)
+            ->assertJsonPath('capabilities.password_reset', true);
     }
 }
