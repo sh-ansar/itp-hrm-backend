@@ -39,6 +39,7 @@ Route::prefix('v1')->group(function (): void {
         // HRM login feature remains explicitly disabled on the server.
         'capabilities' => [
             'browser_login' => (bool) config('hrm.browser_login_enabled', false),
+            'password_reset' => (bool) config('hrm.password_reset_enabled', false),
         ],
     ]));
 
