@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\EmployeeProfileRecordController;
 use App\Http\Controllers\Api\V1\EmployeePrivateProfileController;
 use App\Http\Controllers\Api\V1\EmployeePrivateRecordController;
 use App\Http\Controllers\Api\V1\EmployeeEducationController;
+use App\Http\Controllers\Api\V1\EmployeeContractController;
 use App\Http\Controllers\Api\V1\PositionIndexController;
 use App\Http\Controllers\Api\V1\PositionRecordController;
 use App\Http\Controllers\Api\V1\PersonnelActionController;
@@ -183,6 +184,13 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/employees/{employee}', EmployeeShowController::class)
             ->whereUuid('company')->whereUuid('employee');
+
+        Route::get('/companies/{company}/employees/{employee}/contracts', [EmployeeContractController::class, 'index'])
+            ->whereUuid('company')->whereUuid('employee');
+        Route::post('/companies/{company}/employees/{employee}/contracts', [EmployeeContractController::class, 'store'])
+            ->whereUuid('company')->whereUuid('employee');
+        Route::put('/companies/{company}/employees/{employee}/contracts/{contract}', [EmployeeContractController::class, 'update'])
+            ->whereUuid('company')->whereUuid('employee')->whereUuid('contract');
 
         Route::get('/companies/{company}/employees/{employee}/photo', [EmployeePhotoController::class, 'show'])
             ->whereUuid('company')->whereUuid('employee');

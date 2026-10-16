@@ -79,8 +79,35 @@ final class EmployeeIndexController extends Controller
 
         $role = DB::table('company_user_roles')->where('company_id', $company)
             ->where('user_id', $request->user()->getAuthIdentifier())->value('role_code');
-        if (in_array($role, ['company_admin', 'hr_specialist'], true)) {
-            $query->addSelect('employees.birth_date', 'employees.gender');
+        $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
+        if ($extended) {
+            $query->addSelect('employees.birth_date', 'employees.gender')
+                ->selectSub(function (Builder $sub) use ($today): void {
+                    $sub->from('employee_contracts as current_contract')
+                        ->select('current_contract.contract_type')
+                        ->whereColumn('current_contract.employee_id', 'employees.id')
+                        ->where('current_contract.valid_from', '<=', $today)
+                        ->where(function (Builder $dates) use ($today): void {
+                            $dates->whereNull('current_contract.valid_to')
+                                ->orWhere('current_contract.valid_to', '>=', $today);
+                        })
+                        ->orderByDesc('current_contract.valid_from')
+                        ->orderBy('current_contract.id')
+                        ->limit(1);
+                }, 'contract_type')
+                ->selectSub(function (Builder $sub) use ($today): void {
+                    $sub->from('employee_contracts as current_contract')
+                        ->select('current_contract.valid_to')
+                        ->whereColumn('current_contract.employee_id', 'employees.id')
+                        ->where('current_contract.valid_from', '<=', $today)
+                        ->where(function (Builder $dates) use ($today): void {
+                            $dates->whereNull('current_contract.valid_to')
+                                ->orWhere('current_contract.valid_to', '>=', $today);
+                        })
+                        ->orderByDesc('current_contract.valid_from')
+                        ->orderBy('current_contract.id')
+                        ->limit(1);
+                }, 'contract_valid_to');
         }
         $scopedDepartmentIds = $role === 'department_manager'
             ? DB::table('department_access_scopes')->where('company_id', $company)
@@ -163,6 +190,21 @@ final class EmployeeIndexController extends Controller
                 [$today, $today, $today, $today]
             );
 
+        $expiringContracts = null;
+        $contractExpiryDays = 30;
+        if ($extended) {
+            $expiryTo = now()->addDays($contractExpiryDays)->toDateString();
+            $expiringContracts = (clone $query)
+                ->whereExists(function (Builder $sub) use ($today, $expiryTo): void {
+                    $sub->selectRaw('1')
+                        ->from('employee_contracts as expiring_contract')
+                        ->whereColumn('expiring_contract.employee_id', 'employees.id')
+                        ->where('expiring_contract.valid_from', '<=', $today)
+                        ->whereBetween('expiring_contract.valid_to', [$today, $expiryTo]);
+                })
+                ->count();
+        }
+
         $page = $query
             ->orderBy('employees.last_name')
             ->orderBy('employees.first_name')
@@ -199,6 +241,10 @@ final class EmployeeIndexController extends Controller
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
+                'registry_summary' => [
+                    'expiring_contracts' => $expiringContracts,
+                    'expiring_contracts_days' => $contractExpiryDays,
+                ],
             ],
         ]);
     }
