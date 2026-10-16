@@ -61,7 +61,7 @@ final class AccountRecoveryController extends Controller
             'token' => ['required', 'string', 'max:256'],
             'password_confirmation' => ['required', 'string', 'max:1024'],
             'password' => ['required', 'string', 'max:1024', 'confirmed',
-                PasswordRule::min(14)->mixedCase()->numbers()->symbols()],
+                PasswordRule::min(8)->numbers()->symbols()],
         ]);
         $email = mb_strtolower(trim($data['email']));
         $active = User::query()->where('email', $email)
