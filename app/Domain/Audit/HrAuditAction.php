@@ -44,6 +44,7 @@ enum HrAuditAction: string
     case PersonnelDocumentsListed = 'personnel.documents_listed';
     case WorktimeRecordsListed = 'worktime.records_listed';
     case WorktimeCalendarDaysUpserted = 'worktime.calendar_days_upserted';
+    case WorktimeEntriesUpserted = 'worktime.entries_upserted';
     case LeaveRecordsListed = 'leave.records_listed';
     case LeaveTypeCreated = 'leave.type_created';
     case LeaveRequestCreated = 'leave.request_created';

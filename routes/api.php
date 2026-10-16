@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\PersonnelDocumentFileController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
+use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
@@ -76,6 +77,10 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/worktime/timesheet', [WorktimeReadController::class, 'timesheet'])
             ->whereUuid('company');
+        Route::get('/companies/{company}/worktime/timesheet/{employee}', [WorktimeTimesheetWriteController::class, 'show'])
+            ->whereUuid('company')->whereUuid('employee');
+        Route::put('/companies/{company}/worktime/timesheet/{employee}', [WorktimeTimesheetWriteController::class, 'update'])
+            ->whereUuid('company')->whereUuid('employee');
         Route::get('/companies/{company}/worktime/schedules', [WorktimeReadController::class, 'schedules'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/calendar', [WorktimeReadController::class, 'calendar'])
