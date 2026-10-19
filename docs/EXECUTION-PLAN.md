@@ -94,3 +94,15 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - Own draft/edit/submit/cancel endpoints reuse `LeavePlanWorkflow`, day policies, overlap/revision guards and existing HR/admin decisions. Four-eyes now also excludes an approver's own linked employee record, even when HR created its request.
 - Isolated security/workflow tests cover forged identities, cross-company links, duplicate/stale links, unlinked/revoked access, own revisions and approved projection. SQLite and PostgreSQL CI required before merge.
 - Next: broader own-data tabs (timekeeping and permitted personal documents), leave accrual/reversal rules remain separate work; do not invent balances.
+
+
+## 19 October 2026 — Employee annual leave entitlements (backend PR #102)
+
+- [x] Explicit year/employee/ordinary leave-type grant ledger, adjustments and next-year carryover, with additive migration, company-row locking, optimistic revisions and security audit.
+- [x] Read-only `GET /me/leave-balances` for explicitly linked employees and HR/admin read with tenant isolation. Missing employee grants and incomplete calendars return unknown/null, never auto-seeded values.
+- [x] Approved ordinary leave periods are checked against configured days. Global mandatory check remains **OFF** until company HR/Legal business policy is agreed and all historical year periods are loaded.
+- [x] SQLite and PostgreSQL CI validated PR #102; no production migration or feature activation performed.
+- [ ] Approve business rules for annual accrual, carryover cap/expiry, employment anniversary vs calendar year, reversals, historical deficits and statutory protected leave.
+- [ ] Rehearse staging migration, verify live PostgreSQL backup and roles, then approve flag activation by company.
+- [ ] Complete browser UI E2E and frontend review in PR #157.
+- Developer handoff: `docs/LEAVE-BALANCES.md`.
