@@ -76,11 +76,11 @@ Next steps: agree staging HTTPS origin and trusted proxy; run browser E2E agains
 - [x] B70 + F122: effective `/api/v1/me/access` capabilities, company-sensitive navigation and module company selection; backend and Vue CI green. Custom real-world roles and employee self-service remain OPEN.
 - [x] B71 + F123: protected employee personal and military data, encrypted IIN, versioned edits, HR-only detail, mobile browser flow; green on SQLite/PostgreSQL/TypeScript and Chromium.
 - [x] B72: repeatable family and identity documents, encrypted document numbers, primary partial unique index, soft archive, HR-only API; SQLite/PostgreSQL 16 CI green.
-- [ ] F124: Vue family/identity manager; PR #124 under review as of 15 October. Do not mark complete without all browser CI and merge.
+- [x] F124: Vue family/identity manager, frontend PR #124 merged with its frontend build, CI, Chromium and demo E2E checks passing. Production rights and storage remain separate gates.
 - [ ] Production acceptance: dedicated project PostgreSQL, actual HTTPS/staging login/proxy, business role matrix, proper private file import/scan, real employment/payroll rules, backup and restoration rehearsal.
 
 ### Next maintainer priority
-Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity/military document attachments and leave/attendance corrections without inventing statutory rules. Apply all migrations only on disposable CI or approved project-owned DBs. Do not declare production readiness.
+Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Next review document retention/identity confidentiality, leave/attendance corrections and country-specific statutory rules. Apply migrations only on disposable CI or an approved project-owned staging DB. Do not declare production readiness.
 
 ## Contract expiry windows — 16 October 2026
 - Employment contracts use the existing normalized, versioned `employee_contracts` model and HR-only endpoints; no duplicate employee fields or new migration.
@@ -104,7 +104,7 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - [x] SQLite and PostgreSQL CI validated PR #102; no production migration or feature activation performed.
 - [ ] Approve business rules for annual accrual, carryover cap/expiry, employment anniversary vs calendar year, reversals, historical deficits and statutory protected leave.
 - [ ] Rehearse staging migration, verify live PostgreSQL backup and roles, then approve flag activation by company.
-- [ ] Complete browser UI E2E and frontend review in PR #157.
+- [x] Frontend PR #157 merged with all five checks green (annual leave balances UI, Chromium, demo and `/hrm` subpath). Annual leave policy activation remains separate.
 - Developer handoff: `docs/LEAVE-BALANCES.md`.
 
 
@@ -112,7 +112,7 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 
 - [x] Private MinIO supporting-PDF record, authorized own/HR download, HR review, rejection and replacement. Medical, maternity and childcare leave do not consume ordinary annual balances.
 - [x] Backend PR #105 merged, SQLite/PostgreSQL security tests passed. Two independent feature flags remain OFF by default.
-- [ ] Verify frontend PR #159 Chromium flow in isolated CI; merge only after all existing role, protected leave and document E2Es pass.
+- [x] Frontend PR #159 merged after five green checks, including role-isolated Chromium private-document upload/review.
 - [ ] Before production release approve document retention/deletion, malware screening, HR authorization/medical confidentiality and jurisdiction/company-specific evidence policies.
 - [ ] Stage PostgreSQL migration, back up data and validate MinIO, HTTPS and account-linked role isolation, then separately enable uploads and mandatory evidence after pending requests are reviewed.
 - Maintainer guidance: `docs/PROTECTED-LEAVE-EVIDENCE.md`.
@@ -124,7 +124,16 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - [x] A **different company administrator** can approve or reject (reason mandatory on rejection). Stale revisions, self-approval, own-subject approval, cross-company and unlinked roles are denied.
 - [x] Separate employee PDF release is withheld until an order is internally approved when the opt-in feature is enabled; revocation remains available.
 - [x] Backend SQLite and PostgreSQL CI passed for PR #107, merged into main. No production configuration, migration or records were modified.
-- [ ] Frontend review PR #160 needs its full Playwright role-cycle/production-subpath and demo CI acceptance before merging.
+- [x] Frontend PR #160 merged after five green checks including HR→admin→employee Chromium review/release and `/hrm` subpath E2E.
 - [ ] Legal/HR must decide electronic signature, numbering, pre-action authorization vs already-executed personnel action, retention and compliance before any production rollout.
 - [ ] Back up and rehearse additive migration on staging, validate existing shared orders, MinIO and role matrix. Explicitly enable `HRM_ORDER_APPROVALS_ENABLED` only after separate approval.
 - Maintainer contract: `docs/PERSONNEL-ORDER-REVIEW.md`.
+
+
+## 19 October 2026 — Unified approval inbox (backend PR #109, frontend PR #161)
+
+- [x] HR document registry supports tenant-isolated `document_type=order&status=submitted`; pagination `meta.total` is the accurate database count, not just records on the current page. Backend SQLite/PostgreSQL CI green, PR #109 merged.
+- [x] «Кадровые процессы» shows server-filtered pending leave, bonus and order counts using their existing authorized endpoints. Categories that the caller cannot read remain hidden. Mobile-responsive RU/KK/EN/KA; exact order filter/deep link verified in isolated Chromium.
+- [x] Frontend PR #161 merged after five green checks; no read permissions broadened, no production flags enabled.
+- [ ] Review frontend PR #162 (confirmation before executed hire/transfer/termination); tests must prove Cancel does not modify staffing assignments and authorized confirmation still works.
+- [ ] Production activation and full E2E with owned PostgreSQL/MinIO, backups, HTTPS and verified organization-specific role matrix remain outstanding.
