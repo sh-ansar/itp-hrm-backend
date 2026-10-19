@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
+use App\Http\Controllers\Api\V1\ProtectedLeaveEvidenceController;
 use App\Http\Controllers\Api\V1\LeaveTypeController;
 use App\Http\Controllers\Api\V1\LeaveBalanceController;
 use App\Http\Controllers\Api\V1\EmployeeBonusController;
@@ -142,6 +143,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/companies/{company}/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])
             ->whereUuid('company')->whereUuid('leaveRequest');
         Route::post('/companies/{company}/leave-requests/{leaveRequest}/decision', [LeaveRequestController::class, 'decision'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/evidence/file', [ProtectedLeaveEvidenceController::class, 'upload'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::get('/companies/{company}/leave-requests/{leaveRequest}/evidence/file', [ProtectedLeaveEvidenceController::class, 'download'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/evidence/review', [ProtectedLeaveEvidenceController::class, 'review'])
             ->whereUuid('company')->whereUuid('leaveRequest');
         Route::get('/companies/{company}/staffing-plans', [StaffingPlanController::class, 'index'])
             ->whereUuid('company');

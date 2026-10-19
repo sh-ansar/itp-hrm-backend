@@ -23,6 +23,9 @@ final class LeaveRequestController extends Controller
         ]);
 
         $query = DB::table('leave_requests as lr')
+            ->leftJoin('leave_request_evidence as ev', function ($join) use ($company): void {
+                $join->on('ev.leave_request_id', '=', 'lr.id')->where('ev.company_id', $company);
+            })
             ->join('employees as e', function ($join) use ($company): void {
                 $join->on('e.id', '=', 'lr.employee_id')->where('e.company_id', $company);
             })
@@ -33,7 +36,7 @@ final class LeaveRequestController extends Controller
             ->select('lr.id', 'lr.employee_id', 'lr.leave_type_id',
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
                 'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
-                'lr.created_by_user_id', 'lt.name as leave_type_name',
+                'lr.created_by_user_id', 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'lt.name as leave_type_name',
                 'e.last_name', 'e.first_name', 'e.middle_name', 'lt.category');
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
 
@@ -45,6 +48,8 @@ final class LeaveRequestController extends Controller
                 'last_page' => $page->lastPage(),
                 'total' => $page->total(),
                 'can_approve_leave_requests' => $permissions->canApproveLeaveRequests($request->user(), $company),
+                'protected_evidence_uploads_enabled' => (bool) config('hrm.protected_leave_evidence_enabled', false),
+                'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false),
             ],
         ]);
     }
