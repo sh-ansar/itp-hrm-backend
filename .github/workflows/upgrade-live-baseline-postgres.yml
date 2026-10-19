@@ -1,0 +1,89 @@
+name: HRM Live Baseline Upgrade Rehearsal (PostgreSQL 16)
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pg16-upgrade-preserves-legacy-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: itp_hrm_upgrade_ci
+          POSTGRES_USER: hrm_upgrade_ci
+          POSTGRES_PASSWORD: isolated_upgrade_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hrm_upgrade_ci -d itp_hrm_upgrade_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: 'true'
+      HRM_DISPOSABLE_UPGRADE: pgsql16-rehearsal
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: itp_hrm_upgrade_ci
+      DB_SCHEMA: public
+      DB_USERNAME: hrm_upgrade_ci
+      DB_PASSWORD: isolated_upgrade_ci_only
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: log
+      HRM_BROWSER_LOGIN_ENABLED: 'false'
+      HRM_DOCUMENT_WRITES_ENABLED: 'false'
+      HRM_ROLE_MANAGEMENT_ENABLED: 'false'
+    steps:
+      - name: Checkout current reviewed Laravel backend
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout actual October 16 production backend revision
+        uses: actions/checkout@v4
+        with:
+          repository: sh-ansar/itp-hrm-backend
+          ref: 2f0fe17ef83f69d4500e36d467121db66f0d3185
+          path: old-backend
+          persist-credentials: false
+      - name: Set up PHP 8.4 + PDO PostgreSQL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: exif, gd, mbstring, pdo_pgsql, pgsql, fileinfo
+          coverage: none
+      - name: Install locked dependencies for both release revisions
+        run: |
+          set -euo pipefail
+          composer install --prefer-dist --no-interaction --no-progress
+          (cd old-backend && composer install --prefer-dist --no-interaction --no-progress)
+          test "$(git -C old-backend rev-parse HEAD)" = "2f0fe17ef83f69d4500e36d467121db66f0d3185"
+      - name: Migrate historical schema and preserve representative HR rows
+        run: |
+          set -euo pipefail
+          php old-backend/artisan migrate --force
+          php tests/release-upgrade/verify-upgrade.php seed
+      - name: Migrate the upgraded code without resetting existing data
+        run: |
+          set -euo pipefail
+          # Production-equivalent forward migrations, but ONLY on this new runner database.
+          php artisan migrate --force
+          php tests/release-upgrade/verify-upgrade.php verify
+      - name: Verify migration idempotence and intact historic privacy
+        run: |
+          set -euo pipefail
+          php artisan migrate --force
+          php tests/release-upgrade/verify-upgrade.php verify
+          php artisan migrate:status --no-ansi
