@@ -31,7 +31,12 @@ return new class extends Migration {
                 ->references(['id', 'company_id'])->on('employees')->restrictOnDelete();
             $table->foreign(['leave_type_id', 'company_id'], 'leave_balance_type_tenant_fk')
                 ->references(['id', 'company_id'])->on('leave_types')->restrictOnDelete();
-            $table->foreign('carry_from_period_id')->references('id')->on('leave_balance_periods')->restrictOnDelete();
+            // Self-referential FK added after table creation; PostgreSQL must see its primary key.
+        });
+
+        Schema::table('leave_balance_periods', function (Blueprint $table): void {
+            $table->foreign('carry_from_period_id')->references('id')
+                ->on('leave_balance_periods')->restrictOnDelete();
         });
 
         Schema::create('leave_balance_entries', function (Blueprint $table): void {
