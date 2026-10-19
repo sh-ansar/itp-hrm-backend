@@ -63,4 +63,57 @@ final class PersonnelDocumentRegistryTest extends TestCase
         DB::table('company_user_roles')->insert(['company_id' => $company, 'user_id' => $manager->id, 'role_code' => 'department_manager']);
         $this->actingAs($manager)->getJson("/api/v1/companies/{$company}/documents")->assertForbidden();
     }
+    public function test_order_pending_filter_is_tenant_scoped_and_reports_full_page_count(): void
+    {
+        $company = (string) Str::uuid();
+        $foreign = (string) Str::uuid();
+        $employee = (string) Str::uuid();
+        $foreignEmployee = (string) Str::uuid();
+        $hr = User::factory()->create();
+        $manager = User::factory()->create();
+        DB::table('companies')->insert([
+            ['id' => $company, 'name' => 'Synthetic home company'],
+            ['id' => $foreign, 'name' => 'Synthetic other company'],
+        ]);
+        DB::table('employees')->insert([
+            ['id' => $employee, 'company_id' => $company, 'personnel_number' => 'PENDING-1',
+                'last_name' => 'Private', 'first_name' => 'Order'],
+            ['id' => $foreignEmployee, 'company_id' => $foreign, 'personnel_number' => 'PENDING-2',
+                'last_name' => 'Outside', 'first_name' => 'Employee'],
+        ]);
+        DB::table('company_user_roles')->insert([
+            ['company_id' => $company, 'user_id' => $hr->id, 'role_code' => 'hr_specialist'],
+            ['company_id' => $company, 'user_id' => $manager->id, 'role_code' => 'department_manager'],
+        ]);
+        $records = [];
+        foreach ([
+            [$company, $employee, 'order', 'submitted', 'Awaiting A'],
+            [$company, $employee, 'order', 'submitted', 'Awaiting B'],
+            [$company, $employee, 'order', 'approved', 'Already reviewed'],
+            [$company, $employee, 'contract', 'submitted', 'Different category'],
+            [$foreign, $foreignEmployee, 'order', 'submitted', 'Foreign private order'],
+        ] as [$tenant, $person, $kind, $state, $title]) {
+            $records[] = [
+                'id' => (string) Str::uuid(), 'company_id' => $tenant,
+                'employee_id' => $person, 'document_type' => $kind,
+                'title' => $title, 'status' => $state,
+                'storage_disk' => $kind === 'order' ? 'minio' : null,
+                'storage_path' => $kind === 'order' ? 'secret/never-expose.pdf' : null,
+            ];
+        }
+        DB::table('personnel_documents')->insert($records);
+        $url = "/api/v1/companies/{$company}/documents?document_type=order&status=submitted";
+        $response = $this->actingAs($hr)->getJson($url)
+            ->assertOk()->assertJsonPath('meta.total', 2)->assertJsonCount(2, 'data');
+        $this->assertEqualsCanonicalizing(['Awaiting A', 'Awaiting B'],
+            array_column($response->json('data'), 'title'));
+        $this->assertStringNotContainsString('Foreign private order', $response->getContent());
+        $this->assertStringNotContainsString('secret/never-expose.pdf', $response->getContent());
+        $this->getJson("/api/v1/companies/{$company}/documents?status=issued")->assertUnprocessable();
+        $this->actingAs($manager)->getJson($url)->assertForbidden();
+        $this->actingAs($hr)->getJson("/api/v1/companies/{$foreign}/documents?status=submitted")
+            ->assertForbidden();
+    }
+
+
 }

@@ -98,6 +98,7 @@ final class PersonnelDocumentController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'employee_id' => ['sometimes', 'uuid'],
             'document_type' => ['sometimes', Rule::in(['order', 'contract', 'basis', 'other'])],
+            'status' => ['sometimes', Rule::in(['draft', 'submitted', 'approved', 'rejected'])],
         ]);
 
         $query = DB::table('personnel_documents as d')
@@ -110,6 +111,9 @@ final class PersonnelDocumentController extends Controller
         }
         if (isset($filters['document_type'])) {
             $query->where('d.document_type', $filters['document_type']);
+        }
+        if (isset($filters['status'])) {
+            $query->where('d.status', $filters['status']);
         }
 
         // Never expose storage paths, disk identifiers or private file hashes.
