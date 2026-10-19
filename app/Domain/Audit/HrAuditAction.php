@@ -63,6 +63,9 @@ enum HrAuditAction: string
     case LeaveRequestCancelled = 'leave.request_cancelled';
     case LeaveRequestApproved = 'leave.request_approved';
     case LeaveRequestRejected = 'leave.request_rejected';
+    case LeaveBalancePeriodOpened = 'leave.balance_period_opened';
+    case LeaveBalanceAdjusted = 'leave.balance_adjusted';
+    case LeaveBalanceCarried = 'leave.balance_carried';
     case EmployeeBonusCreated = 'compensation.bonus_created';
     case EmployeeBonusUpdated = 'compensation.bonus_updated';
     case EmployeeBonusSubmitted = 'compensation.bonus_submitted';

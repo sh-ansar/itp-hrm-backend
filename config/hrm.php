@@ -21,6 +21,13 @@ return [
     // Leave mutations are not released with the first read-only leave contract.
     'leave_writes_enabled' => (bool) env('HRM_LEAVE_WRITES_ENABLED', false),
 
+    // Separate opt-in for explicit employee-year grant/adjust/carry operations.
+    'leave_balance_writes_enabled' => (bool) env('HRM_LEAVE_BALANCE_WRITES_ENABLED', false),
+
+    // Enforce quotas for every ordinary leave approval only after all companies
+    // have initialized their employee-year periods and business owners sign off.
+    'leave_balance_enforcement_enabled' => (bool) env('HRM_LEAVE_BALANCE_ENFORCEMENT_ENABLED', false),
+
     // Financially sensitive proposals remain disabled until explicit deployment approval.
     'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),
 
