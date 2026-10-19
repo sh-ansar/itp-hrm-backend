@@ -41,6 +41,9 @@ enum HrAuditAction: string
     case PositionDeleted = 'organization.position_deleted';
     case PersonnelActionCompleted = 'personnel.action_completed';
     case PersonnelDocumentDraftCreated = 'personnel.document_draft_created';
+    case PersonnelOrderSubmitted = 'personnel.order_submitted';
+    case PersonnelOrderApproved = 'personnel.order_approved';
+    case PersonnelOrderRejected = 'personnel.order_rejected';
     case PersonnelDocumentFileAttached = 'personnel.document_file_attached';
     case PersonnelDocumentFileDownloaded = 'personnel.document_file_downloaded';
     case PersonnelDocumentStorageMigrated = 'personnel.document_storage_migrated';

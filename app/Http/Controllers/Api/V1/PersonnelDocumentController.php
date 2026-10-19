@@ -64,6 +64,7 @@ final class PersonnelDocumentController extends Controller
                 'title' => $data['title'],
                 'issued_on' => $data['issued_on'] ?? null,
                 'status' => 'draft',
+                'created_by_user_id' => $request->user()->getAuthIdentifier(),
                 'revision' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -116,6 +117,8 @@ final class PersonnelDocumentController extends Controller
             'd.id', 'd.employee_id', 'd.personnel_action_id',
             'd.document_type', 'd.document_number', 'd.title',
             'd.issued_on', 'd.status', 'd.revision', 'd.created_at',
+            'd.created_by_user_id', 'd.submitted_by_user_id', 'd.submitted_at',
+            'd.reviewed_by_user_id', 'd.reviewed_at', 'd.review_note',
             'd.employee_visible', 'd.employee_shared_at',
             'e.personnel_number', 'e.first_name', 'e.last_name'
         )->selectRaw('CASE WHEN d.storage_disk IS NOT NULL AND d.storage_path IS NOT NULL THEN 1 ELSE 0 END AS has_file')
@@ -141,6 +144,11 @@ final class PersonnelDocumentController extends Controller
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
                 'document_writes_enabled' => (bool) config('hrm.document_writes_enabled', false),
+                'order_approvals_enabled' => (bool) config('hrm.document_writes_enabled', false)
+                    && (bool) config('hrm.order_approvals_enabled', false),
+                'can_review_orders' => $role === 'company_admin'
+                    && (bool) config('hrm.document_writes_enabled', false)
+                    && (bool) config('hrm.order_approvals_enabled', false),
             ],
         ]);
     }
@@ -181,6 +189,14 @@ final class PersonnelDocumentController extends Controller
             if ($visible) {
                 // Internal HR bases and miscellaneous records are never publishable via this endpoint.
                 abort_unless(in_array($row->document_type, ['order', 'contract'], true), 422);
+                // When reviewed orders are active, no newly shared draft/pending
+                // order may be released to the employee. Legacy shares stay readable
+                // until separately reconciled or revoked by HR.
+                if ($row->document_type === 'order'
+                    && config('hrm.order_approvals_enabled', false)) {
+                    abort_unless($row->status === 'approved', 422,
+                        'Approve the order internally before releasing it to the employee.');
+                }
                 // Only validated private PDFs can be explicitly released after HR review.
                 abort_unless($row->storage_disk === 'minio'
                     && $row->content_type === 'application/pdf'
