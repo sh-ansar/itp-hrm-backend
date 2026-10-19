@@ -9,6 +9,8 @@ return [
     'personnel_writes_enabled' => (bool) env('HRM_PERSONNEL_WRITES_ENABLED', false),
 
     'document_writes_enabled' => (bool) env('HRM_DOCUMENT_WRITES_ENABLED', false),
+    // Internal order approval (not legal issuance/EDS). Separate rollout gate.
+    'order_approvals_enabled' => (bool) env('HRM_ORDER_APPROVALS_ENABLED', false),
 
     // Uploads always go to the private MinIO disk. Old local blobs are accessible
     // only during an explicitly approved migration window, never by default.

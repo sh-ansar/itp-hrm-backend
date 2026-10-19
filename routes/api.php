@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\PositionIndexController;
 use App\Http\Controllers\Api\V1\PositionRecordController;
 use App\Http\Controllers\Api\V1\PersonnelActionController;
 use App\Http\Controllers\Api\V1\PersonnelDocumentController;
+use App\Http\Controllers\Api\V1\PersonnelOrderApprovalController;
 use App\Http\Controllers\Api\V1\PersonnelDocumentFileController;
 use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
@@ -180,6 +181,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/development/{section}', EmployeeDevelopmentIndexController::class)
             ->whereUuid('company')->whereIn('section', ['training', 'reserve']);
 
+        Route::post('/companies/{company}/documents/{document}/submit', [PersonnelOrderApprovalController::class, 'submit'])
+            ->whereUuid('company')->whereUuid('document');
+        Route::post('/companies/{company}/documents/{document}/decision', [PersonnelOrderApprovalController::class, 'decision'])
+            ->whereUuid('company')->whereUuid('document');
         Route::post('/companies/{company}/documents', [PersonnelDocumentController::class, 'store'])
             ->whereUuid('company');
         Route::put('/companies/{company}/documents/{document}/employee-access', [PersonnelDocumentController::class, 'employeeAccess'])
