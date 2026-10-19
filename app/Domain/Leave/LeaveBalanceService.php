@@ -49,7 +49,8 @@ final class LeaveBalanceService
         $booked = $this->totalInYear($company, (string) $type->balance_method, $year, $bookedPeriods);
         $pending = $this->totalInYear($company, (string) $type->balance_method, $year, $pendingPeriods);
         $configured = $period !== null;
-        $available = $configured && $booked !== null && $pending !== null
+        $policyValid = in_array($type->balance_method, ['calendar_days', 'working_days'], true);
+        $available = $configured && $policyValid && $booked !== null && $pending !== null
             ? (int) $period->granted_days + (int) $period->carried_days
                 + (int) $period->adjustment_days - $booked
             : null;
@@ -69,8 +70,9 @@ final class LeaveBalanceService
             'pending_days' => $pending,
             'available_days' => $available,
             'state' => ! $configured ? 'unconfigured'
-                : ($booked === null || $pending === null ? 'calendar_incomplete'
-                    : ($period->closed_at !== null ? 'closed' : 'open')),
+                : (! $policyValid ? 'policy_missing'
+                    : ($booked === null || $pending === null ? 'calendar_incomplete'
+                    : ($period->closed_at !== null ? 'closed' : 'open'))),
             'revision' => $configured ? (int) $period->revision : null,
             'carry_from_period_id' => $period?->carry_from_period_id,
             'closed_at' => $period?->closed_at,
@@ -118,7 +120,7 @@ final class LeaveBalanceService
     public function assertApprovalHasBalance(string $company, object $leave): void
     {
         $type = DB::table('leave_types')->where('company_id', $company)
-            ->where('id', $leave->leave_type_id)->first(['id', 'balance_method', 'category']);
+            ->where('id', $leave->leave_type_id)->first(['id', 'name', 'annual_days', 'balance_method', 'category']);
         abort_unless($type, 422);
         if ($type->category !== 'ordinary') return;
 
