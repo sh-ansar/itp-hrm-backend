@@ -116,3 +116,15 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - [ ] Before production release approve document retention/deletion, malware screening, HR authorization/medical confidentiality and jurisdiction/company-specific evidence policies.
 - [ ] Stage PostgreSQL migration, back up data and validate MinIO, HTTPS and account-linked role isolation, then separately enable uploads and mandatory evidence after pending requests are reviewed.
 - Maintainer guidance: `docs/PROTECTED-LEAVE-EVIDENCE.md`.
+
+
+## 19 October 2026 — Internal personnel order review (backend PR #107)
+
+- [x] HR/admin can create a PDF draft with an auditable creator, and the author can submit a numbered, dated, private PDF for review.
+- [x] A **different company administrator** can approve or reject (reason mandatory on rejection). Stale revisions, self-approval, own-subject approval, cross-company and unlinked roles are denied.
+- [x] Separate employee PDF release is withheld until an order is internally approved when the opt-in feature is enabled; revocation remains available.
+- [x] Backend SQLite and PostgreSQL CI passed for PR #107, merged into main. No production configuration, migration or records were modified.
+- [ ] Frontend review PR #160 needs its full Playwright role-cycle/production-subpath and demo CI acceptance before merging.
+- [ ] Legal/HR must decide electronic signature, numbering, pre-action authorization vs already-executed personnel action, retention and compliance before any production rollout.
+- [ ] Back up and rehearse additive migration on staging, validate existing shared orders, MinIO and role matrix. Explicitly enable `HRM_ORDER_APPROVALS_ENABLED` only after separate approval.
+- Maintainer contract: `docs/PERSONNEL-ORDER-REVIEW.md`.
