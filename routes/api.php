@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
 use App\Http\Controllers\Api\V1\LeaveTypeController;
+use App\Http\Controllers\Api\V1\LeaveBalanceController;
 use App\Http\Controllers\Api\V1\EmployeeBonusController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +57,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/me/workspace', [EmployeeSelfServiceController::class, 'show'])->whereUuid('company');
         Route::get('/companies/{company}/me/timesheet', [EmployeeSelfServiceController::class, 'timesheet'])->whereUuid('company');
+        Route::get('/companies/{company}/me/leave-balances', [LeaveBalanceController::class, 'mine'])
+            ->whereUuid('company');
         Route::get('/companies/{company}/me/documents', [EmployeeSelfServiceController::class, 'documents'])->whereUuid('company');
         Route::get('/companies/{company}/me/documents/{document}/file', [PersonnelDocumentFileController::class, 'downloadForEmployee'])
             ->whereUuid('company')->whereUuid('document');
@@ -116,6 +119,14 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/leaves', LeaveReadController::class)
             ->whereUuid('company');
+        Route::get('/companies/{company}/leave-balances', [LeaveBalanceController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/leave-balances/periods', [LeaveBalanceController::class, 'open'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/leave-balances/periods/{period}/adjust', [LeaveBalanceController::class, 'adjust'])
+            ->whereUuid('company')->whereUuid('period');
+        Route::post('/companies/{company}/leave-balances/periods/{period}/carryover', [LeaveBalanceController::class, 'carryover'])
+            ->whereUuid('company')->whereUuid('period');
         Route::get('/companies/{company}/leave-types', [LeaveTypeController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/leave-types', [LeaveTypeController::class, 'store'])

@@ -21,6 +21,7 @@ final class LeavePlanWorkflow
     public function __construct(
         private readonly LeaveDayCounter $counter,
         private readonly HrAuditWriter $audit,
+        private readonly LeaveBalanceService $balances,
     ) {}
 
     public function create(User $actor, string $company, array $input): array
@@ -134,6 +135,9 @@ final class LeavePlanWorkflow
                 $this->assertNoOverlap(
                     $company, $record->employee_id, $record->planned_started_on, $record->planned_ended_on, $id,
                 );
+                // An explicitly configured year must not be overbooked; a closed
+                // year is immutable even if the global enforcement flag is OFF.
+                $this->balances->assertApprovalHasBalance($company, $record);
                 $publishedLeave = (string) Str::uuid();
                 DB::table('employee_leaves')->insert([
                     'id' => $publishedLeave,
