@@ -182,7 +182,7 @@ final class ProtectedLeaveEvidenceTest extends TestCase
             'revision' => 2, 'decision' => 'approved',
         ])->assertUnprocessable();
         $this->actingAs($other)->get($base.'/leave-requests/'.$id.'/evidence/file')->assertNotFound();
-        $this->upload($staff, $base, $id)->assertOk()
+        $this->upload($staff, $base, $id, 2)->assertOk()
             ->assertJsonPath('data.status', 'pending')->assertJsonPath('data.revision', 3);
         $secondPath = DB::table('leave_request_evidence')->where('leave_request_id', $id)->value('storage_path');
         $this->assertNotEquals($firstPath, $secondPath);
