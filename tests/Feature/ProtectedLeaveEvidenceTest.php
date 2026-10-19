@@ -220,16 +220,9 @@ final class ProtectedLeaveEvidenceTest extends TestCase
         ])->assertOk();
         $this->assertDatabaseCount('leave_request_evidence', 0);
         config()->set('hrm.protected_leave_evidence_required', true);
-        $secondEmployee = User::factory()->create();
-        DB::table('company_user_roles')->insert([
-            'company_id' => $company, 'user_id' => $secondEmployee->id, 'role_code' => 'employee',
-        ]);
-        DB::table('employee_user_links')->insert([
-            'company_id' => $company, 'user_id' => $secondEmployee->id,
-            'employee_id' => $otherEmployee, 'revision' => 1,
-        ]);
-        $request = $this->draft($secondEmployee, $base, $medical);
-        $this->actingAs($secondEmployee)->postJson($base.'/me/leave-requests/'.$request['id'].'/submit',
+        // The second already-linked synthetic employee has an independent request.
+        $request = $this->draft($other, $base, $medical);
+        $this->actingAs($other)->postJson($base.'/me/leave-requests/'.$request['id'].'/submit',
             ['revision' => 1])->assertOk();
         $this->actingAs($admin)->postJson($base.'/leave-requests/'.$request['id'].'/decision', [
             'revision' => 2, 'decision' => 'approved',
