@@ -44,6 +44,10 @@ enum HrAuditAction: string
     case PersonnelDocumentFileAttached = 'personnel.document_file_attached';
     case PersonnelDocumentFileDownloaded = 'personnel.document_file_downloaded';
     case PersonnelDocumentStorageMigrated = 'personnel.document_storage_migrated';
+    case PersonnelDocumentSharedWithEmployee = 'personnel.document_shared_with_employee';
+    case PersonnelDocumentEmployeeAccessRevoked = 'personnel.document_employee_access_revoked';
+    case EmployeeDocumentsListed = 'personnel.employee_documents_listed';
+    case EmployeeDocumentDownloaded = 'personnel.employee_document_downloaded';
     case PersonnelDocumentsListed = 'personnel.documents_listed';
     case WorktimeRecordsListed = 'worktime.records_listed';
     case WorktimeCalendarDaysUpserted = 'worktime.calendar_days_upserted';

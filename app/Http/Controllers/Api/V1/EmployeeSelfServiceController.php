@@ -61,6 +61,45 @@ final class EmployeeSelfServiceController extends Controller
             ->header('Cache-Control', 'private, no-store');
     }
 
+
+    /** Only explicitly shared order/contract PDFs; no draft or HR-only file metadata. */
+    public function documents(Request $request, string $company, HrAuditWriter $audit): JsonResponse
+    {
+        if (array_diff(array_keys($request->query()), ['page']) !== []) {
+            throw ValidationException::withMessages(['query' => 'Unexpected own-document filters.']);
+        }
+        $request->validate([
+            'page' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $employeeId = $this->employee($request, $company);
+        abort_unless($employeeId, 403, 'Account is not linked to an employee.');
+
+        $page = DB::table('personnel_documents as d')
+            ->join('employees as e', function ($join) use ($company): void {
+                $join->on('e.id', '=', 'd.employee_id')->where('e.company_id', $company);
+            })
+            ->where('d.company_id', $company)->where('d.employee_id', $employeeId)
+            ->where('d.employee_visible', true)->where('d.storage_disk', 'minio')
+            ->whereNotNull('d.storage_path')
+            ->whereIn('d.document_type', ['order', 'contract'])
+            ->select('d.id', 'd.document_type', 'd.title', 'd.issued_on', 'd.employee_shared_at')
+            ->orderByDesc('d.employee_shared_at')->orderBy('d.id')
+            ->paginate(10);
+
+        $audit->record($request->user(), $company, HrAuditAction::EmployeeDocumentsListed, null, [
+            'returned_count' => count($page->items()),
+        ]);
+
+        return response()->json([
+            'data' => $page->items(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'total' => $page->total(),
+            ],
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
     /** Read-only, own-employee month. No administrative employee ID is ever accepted. */
     public function timesheet(Request $request, string $company, TimesheetEntryWriter $writer): JsonResponse
     {

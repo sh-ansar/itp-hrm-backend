@@ -107,9 +107,45 @@ final class PersonnelDocumentFileController extends Controller
     public function download(Request $request, string $company, string $document, HrAuditWriter $audit): StreamedResponse
     {
         $record = $this->authorized($request, $company, $document, false);
+        return $this->streamAuthorizedPdf($request, $company, $document, $record, $audit,
+            HrAuditAction::PersonnelDocumentFileDownloaded);
+    }
+
+    /** Own-document access cannot rely on the broader HR document download route. */
+    public function downloadForEmployee(Request $request, string $company, string $document, HrAuditWriter $audit): StreamedResponse
+    {
+        $userId = $request->user()->getAuthIdentifier();
+        $member = DB::table('company_user_roles')
+            ->where('company_id', $company)->where('user_id', $userId)
+            ->whereIn('role_code', ['company_admin', 'hr_specialist', 'department_manager', 'employee'])
+            ->exists();
+        abort_unless($member, 404);
+
+        $ownEmployee = DB::table('employee_user_links')
+            ->where('company_id', $company)->where('user_id', $userId)->value('employee_id');
+        abort_unless($ownEmployee, 404);
+        $record = DB::table('personnel_documents as d')
+            ->join('employees as e', 'e.id', '=', 'd.employee_id')
+            ->where('d.id', $document)->where('d.company_id', $company)
+            ->where('d.employee_id', $ownEmployee)->where('e.company_id', $company)
+            ->where('d.employee_visible', true)
+            ->where('d.storage_disk', 'minio')->whereNotNull('d.storage_path')
+            ->whereIn('d.document_type', ['order', 'contract'])
+            ->select('d.*')->first();
+        abort_unless($record, 404);
+
+        return $this->streamAuthorizedPdf($request, $company, $document, $record, $audit,
+            HrAuditAction::EmployeeDocumentDownloaded);
+    }
+
+    /** Private authenticated, audited byte stream only. Never return object-store URLs. */
+    private function streamAuthorizedPdf(Request $request, string $company, string $document, object $record,
+        HrAuditWriter $audit, HrAuditAction $action): StreamedResponse
+    {
         $diskName = $record->storage_disk;
         $isMinio = $diskName === 'minio';
-        $isLegacy = $diskName === 'local' && (bool) config('hrm.legacy_document_reads_enabled', false);
+        $isLegacy = $action === HrAuditAction::PersonnelDocumentFileDownloaded
+            && $diskName === 'local' && (bool) config('hrm.legacy_document_reads_enabled', false);
         abort_unless($isMinio || $isLegacy, 404);
 
         $path = $record->storage_path;
@@ -130,15 +166,12 @@ final class PersonnelDocumentFileController extends Controller
         abort_unless(is_resource($stream), 503, 'Document storage is temporarily unavailable.');
 
         try {
-            $audit->record($request->user(), $company, HrAuditAction::PersonnelDocumentFileDownloaded, null, [
-                'document_id' => $document,
-            ]);
+            $audit->record($request->user(), $company, $action, null, ['document_id' => $document]);
         } catch (\Throwable $exception) {
             fclose($stream);
             throw $exception;
         }
 
-        // Files never traverse a public object-store URL; authorization/audit happen per request.
         return response()->streamDownload(static function () use ($stream): void {
             try {
                 fpassthru($stream);

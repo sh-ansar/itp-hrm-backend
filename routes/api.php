@@ -56,6 +56,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/me/workspace', [EmployeeSelfServiceController::class, 'show'])->whereUuid('company');
         Route::get('/companies/{company}/me/timesheet', [EmployeeSelfServiceController::class, 'timesheet'])->whereUuid('company');
+        Route::get('/companies/{company}/me/documents', [EmployeeSelfServiceController::class, 'documents'])->whereUuid('company');
+        Route::get('/companies/{company}/me/documents/{document}/file', [PersonnelDocumentFileController::class, 'downloadForEmployee'])
+            ->whereUuid('company')->whereUuid('document');
         Route::post('/companies/{company}/me/leave-requests', [EmployeeSelfServiceController::class, 'save'])->whereUuid('company');
         Route::put('/companies/{company}/me/leave-requests/{leaveRequest}', [EmployeeSelfServiceController::class, 'save'])
             ->whereUuid('company')->whereUuid('leaveRequest');
@@ -161,6 +164,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/companies/{company}/documents', [PersonnelDocumentController::class, 'store'])
             ->whereUuid('company');
+        Route::put('/companies/{company}/documents/{document}/employee-access', [PersonnelDocumentController::class, 'employeeAccess'])
+            ->whereUuid('company')->whereUuid('document');
         Route::post('/companies/{company}/documents/{document}/file', [PersonnelDocumentFileController::class, 'upload'])
             ->whereUuid('company')->whereUuid('document');
         Route::get('/companies/{company}/documents/{document}/file', [PersonnelDocumentFileController::class, 'download'])
