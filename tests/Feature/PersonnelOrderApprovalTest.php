@@ -217,6 +217,10 @@ final class PersonnelOrderApprovalTest extends TestCase
         $this->postJson($base.'/documents/'.$id.'/decision', [
             'revision' => 3, 'decision' => 'approved',
         ])->assertForbidden();
+        // One-to-one employee linking is an invariant: reassign the subject
+        // from the synthetic staff account to the independent administrator.
+        DB::table('employee_user_links')->where('company_id', $company)
+            ->where('employee_id', $employee)->delete();
         // Independent admin also cannot decide about their own employee record.
         DB::table('employee_user_links')->insert([
             'company_id' => $company, 'user_id' => $admin2->id,
