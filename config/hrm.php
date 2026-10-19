@@ -28,6 +28,11 @@ return [
     // have initialized their employee-year periods and business owners sign off.
     'leave_balance_enforcement_enabled' => (bool) env('HRM_LEAVE_BALANCE_ENFORCEMENT_ENABLED', false),
 
+    // Private supporting PDFs for medical, maternity and childcare leave.
+    // Existing requests stay compatible until explicit rollout and policy sign-off.
+    'protected_leave_evidence_enabled' => (bool) env('HRM_PROTECTED_LEAVE_EVIDENCE_ENABLED', false),
+    'protected_leave_evidence_required' => (bool) env('HRM_PROTECTED_LEAVE_EVIDENCE_REQUIRED', false),
+
     // Financially sensitive proposals remain disabled until explicit deployment approval.
     'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),
 

@@ -65,6 +65,11 @@ final class LeavePlanWorkflow
             $record = $this->loadLocked($company, $id);
             $this->assertRevision($record, (int) $input['revision']);
             abort_unless($record->status === 'draft', 409, 'Only draft leave requests can be edited.');
+            // A supporting PDF was reviewed against the exact category/dates.
+            // Editing after upload would invalidate that review's meaning.
+            abort_if(DB::table('leave_request_evidence')->where('company_id', $company)
+                ->where('leave_request_id', $id)->exists(), 409,
+                'A request with supporting evidence cannot be edited. Cancel and create a new request.');
             $this->assertEmployee($company, $input['employee_id']);
             $days = $this->counter->count(
                 $company, $input['leave_type_id'], $input['planned_started_on'], $input['planned_ended_on'],
@@ -135,6 +140,22 @@ final class LeavePlanWorkflow
                 $this->assertNoOverlap(
                     $company, $record->employee_id, $record->planned_started_on, $record->planned_ended_on, $id,
                 );
+                // Protected leave must never consume ordinary leave balances.
+                // After explicit per-environment activation, no protected leave
+                // may be approved without a separate HR-verified private document.
+                $kind = DB::table('leave_types')->where('id', $record->leave_type_id)
+                    ->where('company_id', $company)->value('category');
+                if (in_array($kind, ['medical', 'maternity', 'childcare'], true)
+                    && config('hrm.protected_leave_evidence_required', false)) {
+                    $verified = DB::table('leave_request_evidence')
+                        ->where('company_id', $company)->where('leave_request_id', $id)
+                        ->where('status', 'verified')->exists();
+                    if (! $verified) {
+                        throw ValidationException::withMessages([
+                            'evidence' => 'HR must verify the supporting PDF before approving protected leave.',
+                        ]);
+                    }
+                }
                 // An explicitly configured year must not be overbooked; a closed
                 // year is immutable even if the global enforcement flag is OFF.
                 $this->balances->assertApprovalHasBalance($company, $record);

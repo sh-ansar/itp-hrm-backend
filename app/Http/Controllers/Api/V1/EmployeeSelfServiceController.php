@@ -37,12 +37,16 @@ final class EmployeeSelfServiceController extends Controller
         $employee = $id ? DB::table('employees')->where('company_id', $company)->where('id', $id)
             ->first(['id', 'personnel_number', 'first_name', 'last_name', 'middle_name']) : null;
         $requests = $id ? DB::table('leave_requests as r')
+            ->leftJoin('leave_request_evidence as ev', function ($join) use ($company): void {
+                $join->on('ev.leave_request_id', '=', 'r.id')->where('ev.company_id', $company);
+            })
             ->join('leave_types as t', 't.id', '=', 'r.leave_type_id')
             ->where('r.company_id', $company)->where('r.employee_id', $id)
             // HR planning notes are not employee-facing correspondence.
             ->where('r.created_by_user_id', $request->user()->id)
             ->orderByDesc('r.created_at')->orderByDesc('r.id')
-            ->select('r.id', 'r.leave_type_id', 't.name as leave_type_name', 'r.planned_started_on',
+            ->select('r.id', 'r.leave_type_id', 't.name as leave_type_name', 't.category',
+                'ev.status as evidence_status', 'ev.revision as evidence_revision', 'r.planned_started_on',
                 'r.planned_ended_on', 'r.planned_days', 'r.status', 'r.revision', 'r.note', 'r.decision_comment')
             ->paginate(25, ['*'], 'requests_page') : null;
         $leaves = $id ? DB::table('employee_leaves as l')
@@ -57,7 +61,9 @@ final class EmployeeSelfServiceController extends Controller
             'leave_types' => $id ? DB::table('leave_types')->where('company_id', $company)
                 ->orderBy('name')->get(['id', 'name', 'category']) : [],
         ], 'meta' => ['can_request' => $id !== null && (bool) config('hrm.leave_writes_enabled', false),
-            'requests_last_page' => $requests?->lastPage() ?? 1, 'leaves_last_page' => $leaves?->lastPage() ?? 1]])
+            'requests_last_page' => $requests?->lastPage() ?? 1, 'leaves_last_page' => $leaves?->lastPage() ?? 1,
+            'protected_evidence_uploads_enabled' => (bool) config('hrm.protected_leave_evidence_enabled', false),
+            'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false)]])
             ->header('Cache-Control', 'private, no-store');
     }
 
