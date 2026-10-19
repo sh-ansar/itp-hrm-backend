@@ -125,6 +125,7 @@ final class PersonnelDocumentController extends Controller
         // Boolean attachment availability only; never serialize disk/path/hash metadata.
         $page->getCollection()->transform(static function (object $row): object {
             $row->has_file = (bool) $row->has_file;
+            $row->employee_visible = filter_var($row->employee_visible, FILTER_VALIDATE_BOOLEAN);
             return $row;
         });
 
