@@ -52,7 +52,7 @@ final class EmployeeDocumentSharingTest extends TestCase
                 'document_type' => 'contract', 'title' => 'Own contract', 'document_number' => 'PRIVATE-123',
                 'status' => 'draft', 'revision' => 1],
             ['id' => $basis, 'company_id' => $company, 'employee_id' => $employee,
-                'document_type' => 'basis', 'title' => 'Confidential HR basis',
+                'document_type' => 'basis', 'title' => 'Confidential HR basis', 'document_number' => null,
                 'status' => 'draft', 'revision' => 1],
         ]);
 
