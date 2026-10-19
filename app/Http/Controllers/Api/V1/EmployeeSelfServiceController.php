@@ -65,7 +65,10 @@ final class EmployeeSelfServiceController extends Controller
     /** Only explicitly shared order/contract PDFs; no draft or HR-only file metadata. */
     public function documents(Request $request, string $company, HrAuditWriter $audit): JsonResponse
     {
-        $filters = $request->validate([
+        if (array_diff(array_keys($request->query()), ['page']) !== []) {
+            throw ValidationException::withMessages(['query' => 'Unexpected own-document filters.']);
+        }
+        $request->validate([
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $employeeId = $this->employee($request, $company);
