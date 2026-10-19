@@ -116,6 +116,7 @@ final class PersonnelDocumentController extends Controller
             'd.id', 'd.employee_id', 'd.personnel_action_id',
             'd.document_type', 'd.document_number', 'd.title',
             'd.issued_on', 'd.status', 'd.revision', 'd.created_at',
+            'd.employee_visible', 'd.employee_shared_at',
             'e.personnel_number', 'e.first_name', 'e.last_name'
         )->selectRaw('CASE WHEN d.storage_disk IS NOT NULL AND d.storage_path IS NOT NULL THEN 1 ELSE 0 END AS has_file')
             ->orderByDesc('d.issued_on')->orderByDesc('d.created_at')->orderBy('d.id')
@@ -142,4 +143,80 @@ final class PersonnelDocumentController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Explicit HR distribution, never automatic on upload.
+     * This is a PDF visibility approval, NOT a signature or legal issuance.
+     */
+    public function employeeAccess(Request $request, string $company, string $document, HrAuditWriter $audit): JsonResponse
+    {
+        $role = DB::table('company_user_roles')
+            ->where('company_id', $company)
+            ->where('user_id', $request->user()->getAuthIdentifier())
+            ->value('role_code');
+        abort_unless(in_array($role, ['company_admin', 'hr_specialist'], true)
+            && (bool) config('hrm.document_writes_enabled', false), 404);
+
+        if (array_diff(array_keys($request->all()), ['revision', 'employee_visible']) !== []) {
+            throw ValidationException::withMessages(['request' => 'Unexpected document access fields.']);
+        }
+        $data = $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
+            'employee_visible' => ['required', 'boolean'],
+        ]);
+
+        return DB::transaction(function () use ($request, $company, $document, $audit, $data): JsonResponse {
+            DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
+            $row = DB::table('personnel_documents as d')
+                ->join('employees as e', function ($join) use ($company): void {
+                    $join->on('e.id', '=', 'd.employee_id')->where('e.company_id', $company);
+                })
+                ->where('d.company_id', $company)->where('d.id', $document)
+                ->select('d.*')->first();
+            abort_unless($row, 404);
+            abort_unless((int) $row->revision === (int) $data['revision'], 409);
+
+            $visible = (bool) $data['employee_visible'];
+            if ($visible) {
+                // Internal HR bases and miscellaneous records are never publishable via this endpoint.
+                abort_unless(in_array($row->document_type, ['order', 'contract'], true), 422);
+                // Only scanned/reviewed employee-facing PDFs stored on the private MinIO disk.
+                abort_unless($row->storage_disk === 'minio'
+                    && $row->content_type === 'application/pdf'
+                    && is_string($row->storage_path)
+                    && str_starts_with($row->storage_path, 'personnel-documents/'.$company.'/'.$document.'/')
+                    && preg_match('/^[a-z0-9\\/-]+\\.pdf$/', $row->storage_path) === 1
+                    && (int) $row->byte_size > 0
+                    && is_string($row->sha256) && preg_match('/^[0-9a-f]{64}$/', $row->sha256) === 1, 422);
+            }
+            if ((bool) $row->employee_visible === $visible) {
+                return response()->json(['data' => [
+                    'id' => $document, 'employee_visible' => $visible,
+                    'employee_shared_at' => $row->employee_shared_at,
+                    'revision' => (int) $row->revision,
+                ]])->header('Cache-Control', 'private, no-store');
+            }
+
+            $updated = DB::table('personnel_documents')
+                ->where('id', $document)->where('company_id', $company)->where('revision', $row->revision)
+                ->update([
+                    'employee_visible' => $visible,
+                    'employee_shared_at' => $visible ? now() : null,
+                    'revision' => (int) $row->revision + 1,
+                    'updated_at' => now(),
+                ]);
+            abort_unless($updated === 1, 409);
+            $audit->record($request->user(), $company,
+                $visible ? HrAuditAction::PersonnelDocumentSharedWithEmployee
+                    : HrAuditAction::PersonnelDocumentEmployeeAccessRevoked, null,
+                ['document_id' => $document, 'employee_id' => $row->employee_id]);
+            $sharedAt = DB::table('personnel_documents')->where('id', $document)->value('employee_shared_at');
+
+            return response()->json(['data' => [
+                'id' => $document, 'employee_visible' => $visible,
+                'employee_shared_at' => $sharedAt, 'revision' => (int) $row->revision + 1,
+            ]])->header('Cache-Control', 'private, no-store');
+        }, 3);
+    }
+
 }
