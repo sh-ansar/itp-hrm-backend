@@ -242,7 +242,18 @@ final class LeaveBalanceLedgerTest extends TestCase
         $this->assertDatabaseHas('leave_balance_periods', [
             'id' => $target['id'], 'carry_from_period_id' => $source['id'], 'carried_days' => 6,
         ]);
-        $this->postJson($url, $payload)->assertConflict();
+        // A closed year is archived, not still spendable. The verified
+        // closing amount is retained separately from transferred days.
+        $this->actingAs($staff)->getJson($base.'/me/leave-balances?year=2026')
+            ->assertJsonPath('data.0.state', 'closed')
+            ->assertJsonPath('data.0.available_days', 0)
+            ->assertJsonPath('data.0.closing_available_days', 8)
+            ->assertJsonPath('data.0.carried_out_days', 6);
+        $this->getJson($base.'/me/leave-balances?year=2027')
+            ->assertJsonPath('data.0.available_days', 16)
+            ->assertJsonPath('data.0.closing_available_days', null)
+            ->assertJsonPath('data.0.carried_out_days', null);
+        $this->actingAs($admin)->postJson($url, $payload)->assertConflict();
         $this->postJson($base.'/leave-balances/periods/'.$source['id'].'/adjust', [
             'revision' => 2, 'delta_days' => 1, 'reason' => 'Late adjustment forbidden',
         ])->assertConflict();

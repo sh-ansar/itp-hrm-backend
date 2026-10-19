@@ -49,11 +49,16 @@ final class LeaveBalanceService
         $booked = $this->totalInYear($company, (string) $type->balance_method, $year, $bookedPeriods);
         $pending = $this->totalInYear($company, (string) $type->balance_method, $year, $pendingPeriods);
         $configured = $period !== null;
+        $closed = $configured && $period->closed_at !== null;
         $policyValid = in_array($type->balance_method, ['calendar_days', 'working_days'], true);
-        $available = $configured && $policyValid && $booked !== null && $pending !== null
+        // "Available" means newly bookable days. A closed year cannot be
+        // booked again, even though its historical closing snapshot stays auditable.
+        $available = $closed ? 0 : ($configured && $policyValid && $booked !== null && $pending !== null
             ? (int) $period->granted_days + (int) $period->carried_days
                 + (int) $period->adjustment_days - $booked
-            : null;
+            : null);
+        $carriedOut = $closed ? (int) (DB::table('leave_balance_periods')
+            ->where('carry_from_period_id', $period->id)->value('carried_days') ?? 0) : null;
 
         return [
             'id' => $period?->id,
@@ -69,10 +74,13 @@ final class LeaveBalanceService
             'booked_days' => $booked,
             'pending_days' => $pending,
             'available_days' => $available,
+            // Snapshot at the moment of closure (not new spendable days).
+            'closing_available_days' => $closed ? (int) $period->closing_available_days : null,
+            'carried_out_days' => $carriedOut,
             'state' => ! $configured ? 'unconfigured'
-                : (! $policyValid ? 'policy_missing'
-                    : ($booked === null || $pending === null ? 'calendar_incomplete'
-                    : ($period->closed_at !== null ? 'closed' : 'open'))),
+                : ($closed ? 'closed'
+                    : (! $policyValid ? 'policy_missing'
+                        : ($booked === null || $pending === null ? 'calendar_incomplete' : 'open'))),
             'revision' => $configured ? (int) $period->revision : null,
             'carry_from_period_id' => $period?->carry_from_period_id,
             'closed_at' => $period?->closed_at,
