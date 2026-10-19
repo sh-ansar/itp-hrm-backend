@@ -106,3 +106,13 @@ Follow `docs/MAINTAINER-START-HERE.md`; finish/verify F124, then review identity
 - [ ] Rehearse staging migration, verify live PostgreSQL backup and roles, then approve flag activation by company.
 - [ ] Complete browser UI E2E and frontend review in PR #157.
 - Developer handoff: `docs/LEAVE-BALANCES.md`.
+
+
+## 19 October 2026 — Supporting documents for protected leave
+
+- [x] Private MinIO supporting-PDF record, authorized own/HR download, HR review, rejection and replacement. Medical, maternity and childcare leave do not consume ordinary annual balances.
+- [x] Backend PR #105 merged, SQLite/PostgreSQL security tests passed. Two independent feature flags remain OFF by default.
+- [ ] Verify frontend PR #159 Chromium flow in isolated CI; merge only after all existing role, protected leave and document E2Es pass.
+- [ ] Before production release approve document retention/deletion, malware screening, HR authorization/medical confidentiality and jurisdiction/company-specific evidence policies.
+- [ ] Stage PostgreSQL migration, back up data and validate MinIO, HTTPS and account-linked role isolation, then separately enable uploads and mandatory evidence after pending requests are reviewed.
+- Maintainer guidance: `docs/PROTECTED-LEAVE-EVIDENCE.md`.
