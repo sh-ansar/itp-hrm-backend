@@ -180,7 +180,7 @@ final class PersonnelDocumentController extends Controller
             if ($visible) {
                 // Internal HR bases and miscellaneous records are never publishable via this endpoint.
                 abort_unless(in_array($row->document_type, ['order', 'contract'], true), 422);
-                // Only scanned/reviewed employee-facing PDFs stored on the private MinIO disk.
+                // Only validated private PDFs can be explicitly released after HR review.
                 abort_unless($row->storage_disk === 'minio'
                     && $row->content_type === 'application/pdf'
                     && is_string($row->storage_path)
@@ -189,7 +189,7 @@ final class PersonnelDocumentController extends Controller
                     && (int) $row->byte_size > 0
                     && is_string($row->sha256) && preg_match('/^[0-9a-f]{64}$/', $row->sha256) === 1, 422);
             }
-            if ((bool) $row->employee_visible === $visible) {
+            if (filter_var($row->employee_visible, FILTER_VALIDATE_BOOLEAN) === $visible) {
                 return response()->json(['data' => [
                     'id' => $document, 'employee_visible' => $visible,
                     'employee_shared_at' => $row->employee_shared_at,
