@@ -55,6 +55,7 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/me/preferences', [UserPreferencesController::class, 'update']);
         Route::get('/companies', CompanyIndexController::class);
         Route::get('/companies/{company}/me/workspace', [EmployeeSelfServiceController::class, 'show'])->whereUuid('company');
+        Route::get('/companies/{company}/me/timesheet', [EmployeeSelfServiceController::class, 'timesheet'])->whereUuid('company');
         Route::post('/companies/{company}/me/leave-requests', [EmployeeSelfServiceController::class, 'save'])->whereUuid('company');
         Route::put('/companies/{company}/me/leave-requests/{leaveRequest}', [EmployeeSelfServiceController::class, 'save'])
             ->whereUuid('company')->whereUuid('leaveRequest');
