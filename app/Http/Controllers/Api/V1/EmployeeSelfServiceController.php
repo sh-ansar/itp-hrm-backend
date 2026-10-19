@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Leave\LeavePlanWorkflow;
+use App\Domain\Worktime\TimesheetEntryWriter;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -57,6 +59,24 @@ final class EmployeeSelfServiceController extends Controller
         ], 'meta' => ['can_request' => $id !== null && (bool) config('hrm.leave_writes_enabled', false),
             'requests_last_page' => $requests?->lastPage() ?? 1, 'leaves_last_page' => $leaves?->lastPage() ?? 1]])
             ->header('Cache-Control', 'private, no-store');
+    }
+
+    /** Read-only, own-employee month. No administrative employee ID is ever accepted. */
+    public function timesheet(Request $request, string $company, TimesheetEntryWriter $writer): JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+            'employee_id' => ['prohibited'],
+            'company_id' => ['prohibited'],
+        ]);
+
+        $employeeId = $this->employee($request, $company);
+        abort_unless($employeeId, 403, 'Account is not linked to an employee.');
+
+        return response()->json([
+            'data' => $writer->days($company, $employeeId, $validated['month']),
+            'meta' => ['month' => $validated['month'], 'can_edit' => false],
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function save(Request $request, string $company, LeavePlanWorkflow $workflow, ?string $leaveRequest = null)

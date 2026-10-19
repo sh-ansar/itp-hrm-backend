@@ -103,4 +103,52 @@ final class EmployeeSelfServiceTest extends TestCase
         $this->postJson($base.'/leave-requests/'.$request['id'].'/submit', ['revision' => 1])->assertOk();
         $this->actingAs($admin)->postJson($base.'/leave-requests/'.$request['id'].'/decision', ['revision' => 2, 'decision' => 'approved'])->assertForbidden();
     }
+
+    public function test_employee_own_timesheet_reads_only_linked_records_without_fabricating_hours(): void
+    {
+        extract($this->fixture());
+        $url = $base.'/me/timesheet?month=2026-10';
+
+        $this->actingAs($user)->getJson($url)->assertForbidden();
+        $this->actingAs($admin)->putJson($link, ['employee_id' => $employee, 'revision' => 0])->assertOk();
+
+        DB::table('production_calendar_days')->insert([
+            ['id' => (string) Str::uuid(), 'company_id' => $company, 'work_date' => '2026-10-15',
+                'day_type' => 'workday', 'planned_minutes' => 480, 'label' => null, 'revision' => 1],
+            ['id' => (string) Str::uuid(), 'company_id' => $company, 'work_date' => '2026-10-16',
+                'day_type' => 'holiday', 'planned_minutes' => 0, 'label' => 'Synthetic holiday', 'revision' => 1],
+        ]);
+        DB::table('worktime_entries')->insert([
+            'id' => (string) Str::uuid(), 'employee_id' => $employee, 'work_date' => '2026-10-15',
+            'planned_minutes' => 480, 'worked_minutes' => 420, 'absence_minutes' => 60,
+            'overtime_minutes' => 0, 'revision' => 1,
+        ]);
+
+        // Employee read remains possible even with administrative timesheet writes disabled.
+        config()->set('hrm.worktime_writes_enabled', false);
+        $this->actingAs($user)->getJson($url)->assertOk()
+            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertJsonPath('meta.can_edit', false)
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.worked_minutes', 420)
+            ->assertJsonPath('data.0.absence_minutes', 60)
+            ->assertJsonPath('data.1.day_type', 'holiday')
+            ->assertJsonPath('data.1.worked_minutes', null);
+        $this->getJson($url.'&employee_id='.((string) Str::uuid()))->assertUnprocessable();
+        $this->getJson($base.'/me/timesheet?month=2026-99')->assertUnprocessable();
+        $this->getJson($base.'/me/timesheet')->assertUnprocessable();
+
+        $this->actingAs($other)->getJson($url)->assertForbidden();
+        $otherEmployee = (string) Str::uuid();
+        DB::table('employees')->insert(['id' => $otherEmployee, 'company_id' => $company,
+            'personnel_number' => 'SYNTH-OTHER', 'last_name' => 'Other', 'first_name' => 'Employee']);
+        $this->actingAs($admin)->putJson($base.'/memberships/'.$other->id.'/employee-link',
+            ['employee_id' => $otherEmployee, 'revision' => 0])->assertOk();
+        $this->actingAs($other)->getJson($url)->assertOk()
+            ->assertJsonPath('data.0.worked_minutes', null);
+        $this->actingAs($user)->getJson($url)->assertJsonPath('data.0.worked_minutes', 420);
+        DB::table('company_user_roles')->where('company_id', $company)->where('user_id', $user->id)->delete();
+        $this->getJson($url)->assertForbidden();
+    }
+
 }
