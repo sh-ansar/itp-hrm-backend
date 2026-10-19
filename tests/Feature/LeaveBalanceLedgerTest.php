@@ -102,7 +102,7 @@ final class LeaveBalanceLedgerTest extends TestCase
         $this->assertArrayNotHasKey('balance', $own->json('data.0'));
         $this->getJson($mine.'&employee_id='.$otherEmployee)->assertUnprocessable();
         $this->getJson($base.'/me/leave-balances?year=2026&company_id='.$company)->assertUnprocessable();
-        $this->getJson($base.'/me/leave-balances?year=2026&year=2027')->assertUnprocessable();
+        $this->getJson($base.'/me/leave-balances?year=2026&unexpected=1')->assertUnprocessable();
         $this->getJson($base.'/leave-balances?year=2026&employee_id='.$employee)->assertForbidden();
         $this->actingAs($hr)->getJson($base.'/leave-balances?year=2026&employee_id='.$employee)
             ->assertOk()->assertJsonPath('data.0.available_days', null);
