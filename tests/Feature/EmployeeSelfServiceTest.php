@@ -127,7 +127,7 @@ final class EmployeeSelfServiceTest extends TestCase
         // Employee read remains possible even with administrative timesheet writes disabled.
         config()->set('hrm.worktime_writes_enabled', false);
         $this->actingAs($user)->getJson($url)->assertOk()
-            ->assertHeader('Cache-Control', 'private, no-store')
+            ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonPath('meta.can_edit', false)
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('data.0.worked_minutes', 420)
