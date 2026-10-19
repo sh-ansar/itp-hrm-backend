@@ -88,7 +88,7 @@ final class EmployeeDocumentSharingTest extends TestCase
         $filePath = $this->storePdf($company, $doc, $employee);
         Storage::disk('minio')->assertExists($filePath);
 
-        $this->actingAs($hr)->putJson($sharing, ['revision' => 0, 'employee_visible' => true])->assertConflict();
+        $this->actingAs($hr)->putJson($sharing, ['revision' => 0, 'employee_visible' => true])->assertUnprocessable();
         $this->putJson($sharing, ['revision' => 1, 'employee_visible' => true])->assertOk()
             ->assertJsonPath('data.employee_visible', true)->assertJsonPath('data.revision', 2);
         $this->putJson($sharing, ['revision' => 1, 'employee_visible' => false])->assertConflict();
