@@ -124,7 +124,7 @@ final class LeaveBalanceLedgerTest extends TestCase
         $this->actingAs($staff)->postJson($url, $payload)->assertForbidden();
         $this->actingAs($admin)->postJson($url, $payload + ['company_id' => $company])->assertUnprocessable();
         $this->postJson($url, $payload + ['revision' => 0])->assertUnprocessable();
-        $this->postJson($url, $payload + ['employee_id' => $otherEmployee])->assertCreated();
+        $this->postJson($url, array_replace($payload, ['employee_id' => $otherEmployee]))->assertCreated();
         $this->postJson($url, $payload)->assertCreated()
             ->assertJsonPath('data.granted_days', 10)
             ->assertJsonPath('data.reference_annual_days', 24)
