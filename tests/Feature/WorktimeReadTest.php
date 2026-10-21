@@ -18,6 +18,15 @@ final class WorktimeReadTest extends TestCase
         [$company, $department, $position] = $this->companyScope($user, 'hr_specialist');
         $employee = $this->employee($company, $department, $position, 'EMP-001', 'Person', 'One');
 
+        $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/employees/{$employee}/monthly-summary?month=2026-10")
+            ->assertOk()
+            ->assertJsonPath('data.summary.days_recorded', 0)
+            ->assertJsonPath('data.summary.present_days', null)
+            ->assertJsonPath('data.summary.overtime_minutes', null)
+            ->assertJsonPath('data.summary.lateness_minutes', null)
+            ->assertJsonCount(0, 'data.days')
+            ->assertJsonPath('meta.read_only', true);
         $empty = $this->actingAs($user)
             ->getJson("/api/v1/companies/{$company}/worktime/timesheet?month=2026-10")
             ->assertOk()
@@ -116,6 +125,20 @@ final class WorktimeReadTest extends TestCase
             ->assertJsonPath('meta.summary.planned_minutes', 960);
 
         $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/employees/{$employee}/monthly-summary?month=2026-10")
+            ->assertOk()
+            ->assertJsonPath('data.summary.days_recorded', 2)
+            ->assertJsonPath('data.summary.present_days', 2)
+            ->assertJsonPath('data.summary.planned_minutes', 960)
+            ->assertJsonPath('data.summary.worked_minutes', 900)
+            ->assertJsonPath('data.summary.absence_minutes', 60)
+            ->assertJsonPath('data.summary.overtime_minutes', 30)
+            ->assertJsonPath('data.summary.lateness_minutes', null)
+            ->assertJsonCount(2, 'data.days')
+            ->assertJsonPath('data.days.0.date', '2026-10-01')
+            ->assertJsonPath('data.days.1.overtime_minutes', 30)
+            ->assertJsonPath('meta.source', 'worktime_entries');
+        $this->actingAs($user)
             ->getJson("/api/v1/companies/{$company}/worktime/schedules?as_of=2026-10-13")
             ->assertOk()
             ->assertJsonPath('data.0.id', $schedule)
@@ -211,6 +234,12 @@ final class WorktimeReadTest extends TestCase
             ->assertJsonPath('meta.summary.employees_with_entries', 1);
 
         $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/employees/{$visibleEmployee}/monthly-summary?month=2026-10")
+            ->assertOk()->assertJsonPath('data.summary.days_recorded', 1);
+        $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/employees/{$hiddenEmployee}/monthly-summary?month=2026-10")
+            ->assertNotFound();
+        $this->actingAs($user)
             ->getJson("/api/v1/companies/{$company}/worktime/absences?month=2026-10")
             ->assertOk()
             ->assertJsonCount(1, 'data')
@@ -223,6 +252,9 @@ final class WorktimeReadTest extends TestCase
         $user = User::factory()->create();
         [$company] = $this->companyScope($user, 'employee');
 
+        $employeeId = (string) Str::uuid();
+        $this->actingAs($user)->getJson("/api/v1/companies/{$company}/worktime/employees/{$employeeId}/monthly-summary?month=2026-10")
+            ->assertForbidden();
         foreach (['timesheet?month=2026-10', 'schedules?as_of=2026-10-13', 'calendar?month=2026-10', 'absences?month=2026-10'] as $suffix) {
             $this->actingAs($user)
                 ->getJson("/api/v1/companies/{$company}/worktime/{$suffix}")
