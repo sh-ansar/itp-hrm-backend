@@ -115,6 +115,7 @@ final class CompanyDirectoryController extends Controller
         abort_if($row === null, 404);
         abort_if((int) $row->revision !== $revision, 409);
 
+        abort_if(DB::table('company_directory_entries')->where('parent_id', $entry)->exists(), 409, 'Remove child entries before deleting this parent.');
         DB::table('company_directory_entries')->where('id', $entry)->delete();
         $audit->record($request->user(), $company, HrAuditAction::DirectoryEntryDeleted, null, [
             'directory_id' => $entry, 'group' => $group, 'code' => $row->code,
@@ -125,7 +126,8 @@ final class CompanyDirectoryController extends Controller
 
     private function validatePayload(Request $request, string $company, string $group, ?string $entry = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
+            'parent_id' => ['nullable','uuid'],
             'code' => ['required','string','max:100',
                 Rule::unique('company_directory_entries','code')
                     ->where(fn ($query) => $query->where('company_id',$company)->where('group_code',$group))
@@ -136,6 +138,21 @@ final class CompanyDirectoryController extends Controller
             'value' => ['nullable','string','max:500'],
             'status' => ['required', Rule::in(['active','inactive','draft'])],
         ]);
+        $parent = $data['parent_id'] ?? null;
+        if ($parent !== null) {
+            abort_if($parent === $entry, 422, 'An entry cannot be its own parent.');
+            $ancestor = $parent;
+            $visited = [];
+            while ($ancestor !== null) {
+                abort_if(isset($visited[$ancestor]) || $ancestor === $entry, 422, 'Cyclic directory hierarchy.');
+                $visited[$ancestor] = true;
+                $node = DB::table('company_directory_entries')
+                    ->where('id', $ancestor)->where('company_id', $company)->where('group_code', $group)->first();
+                abort_if($node === null, 422, 'Parent must belong to the same company and group.');
+                $ancestor = $node->parent_id;
+            }
+        }
+        return $data;
     }
 
     private function authorizeRead(Request $request, string $company): void
@@ -156,7 +173,7 @@ final class CompanyDirectoryController extends Controller
     private function row(object $row): array
     {
         return [
-            'id'=>$row->id,'group'=>$row->group_code,'code'=>$row->code,'name'=>$row->name,
+            'id'=>$row->id,'group'=>$row->group_code,'parent_id'=>$row->parent_id,'code'=>$row->code,'name'=>$row->name,
             'category'=>$row->category,'unit'=>$row->unit,'value'=>$row->value,'status'=>$row->status,
             'revision'=>(int)$row->revision,
         ];
