@@ -72,4 +72,38 @@ class CompanyDirectoryTest extends TestCase
         $this->actingAs($admin)->getJson("/api/v1/companies/{$company}/directories/not-real")->assertNotFound();
         $this->actingAs($employee)->getJson("/api/v1/companies/{$company}/directories/tariff-types")->assertForbidden();
     }
+
+    public function test_tariff_tree_rejects_cross_company_parents_cycles_and_parent_deletion(): void
+    {
+        config()->set('hrm.directory_writes_enabled', true);
+        [$admin, $company] = $this->fixture();
+        [$other, $otherCompany] = $this->fixture();
+        $base = "/api/v1/companies/{$company}/directories/tariff-types";
+        $otherBase = "/api/v1/companies/{$otherCompany}/directories/tariff-types";
+        $payload = fn (string $code, ?string $parent = null) => [
+            'code' => $code, 'name' => $code, 'parent_id' => $parent, 'status' => 'active',
+        ];
+        $root = $this->actingAs($admin)->postJson($base, $payload('ROOT'))
+            ->assertCreated()->json('data');
+        $child = $this->actingAs($admin)->postJson($base, $payload('CHILD', $root['id']))
+            ->assertCreated()->assertJsonPath('data.parent_id', $root['id'])->json('data');
+        $foreign = $this->actingAs($other)->postJson($otherBase, $payload('FOREIGN'))
+            ->assertCreated()->json('data');
+
+        $this->actingAs($admin)->postJson($base, $payload('CROSS', $foreign['id']))
+            ->assertStatus(422);
+        $this->actingAs($admin)->postJson($base, $payload('SELF', (string) Str::uuid()))
+            ->assertStatus(422);
+        $this->actingAs($admin)->putJson($base.'/'.$root['id'], [
+            ...$payload('ROOT', $child['id']), 'revision' => 1,
+        ])->assertStatus(422);
+        $this->actingAs($admin)->deleteJson($base.'/'.$root['id'], ['revision' => 1])
+            ->assertStatus(409);
+        $this->actingAs($admin)->deleteJson($base.'/'.$child['id'], ['revision' => 1])
+            ->assertNoContent();
+        $this->actingAs($admin)->deleteJson($base.'/'.$root['id'], ['revision' => 1])
+            ->assertNoContent();
+        $this->assertDatabaseHas('company_directory_entries', ['id' => $foreign['id']]);
+    }
+
 }
