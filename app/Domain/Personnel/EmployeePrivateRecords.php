@@ -18,6 +18,7 @@ final class EmployeePrivateRecords
     private const TABLES = [
         'family' => 'employee_family_members',
         'identity' => 'employee_identity_documents',
+        'address' => 'employee_private_addresses',
     ];
 
     public function __construct(private readonly HrAuditWriter $audit) {}
@@ -33,6 +34,11 @@ final class EmployeePrivateRecords
             ->whereNull('archived_at')->orderByDesc('is_primary')
             ->orderByDesc('created_at')->orderBy('id')
             ->limit(101)->get();
+        $addresses = DB::table('employee_private_addresses')
+            ->where('company_id', $company)->where('employee_id', $employee)
+            ->whereNull('archived_at')->orderByDesc('is_primary')
+            ->orderBy('created_at')->orderBy('id')
+            ->limit(101)->get();
 
         return [
             'family' => $family->take(100)->map(static fn (object $row): array => [
@@ -46,8 +52,19 @@ final class EmployeePrivateRecords
             'identity_documents' => $identities->take(100)
                 ->map(fn (object $row): array => $this->identityView($row))
                 ->values()->all(),
+            'addresses' => $addresses->take(100)->map(static fn (object $row): array => [
+                'id' => $row->id,
+                'kind' => $row->kind,
+                'address_line' => $row->address_line,
+                'entrance' => $row->entrance,
+                'floor' => $row->floor,
+                'apartment' => $row->apartment,
+                'is_primary' => (bool) $row->is_primary,
+                'revision' => (int) $row->revision,
+            ])->values()->all(),
             'family_truncated' => $family->count() > 100,
             'identity_documents_truncated' => $identities->count() > 100,
+            'addresses_truncated' => $addresses->count() > 100,
         ];
     }
 
@@ -56,7 +73,9 @@ final class EmployeePrivateRecords
         return DB::transaction(function () use ($actor, $company, $employee, $section, $input): array {
             $this->lockEmployee($company, $employee);
             $id = (string) Str::uuid();
-            if ($section === 'identity' && $input['is_primary']) $this->clearPrimary($company, $employee);
+            if (in_array($section, ['identity', 'address'], true) && $input['is_primary']) {
+                $this->clearPrimary($company, $employee, $section);
+            }
             DB::table(self::TABLES[$section])->insert([
                 'id' => $id, 'company_id' => $company, 'employee_id' => $employee,
                 ...$this->fields($section, $input),
@@ -78,8 +97,8 @@ final class EmployeePrivateRecords
             $existing = $this->findActive($company, $employee, $section, $record);
             $expected = (int) $input['revision'];
             $this->ensureRevision($existing, $expected);
-            if ($section === 'identity' && $input['is_primary']) {
-                $this->clearPrimary($company, $employee, $record);
+            if (in_array($section, ['identity', 'address'], true) && $input['is_primary']) {
+                $this->clearPrimary($company, $employee, $section, $record);
             }
             $count = DB::table(self::TABLES[$section])->where('company_id', $company)
                 ->where('employee_id', $employee)->where('id', $record)
@@ -145,6 +164,16 @@ final class EmployeePrivateRecords
                 'document_reference' => $input['document_reference'],
             ];
         }
+        if ($section === 'address') {
+            return [
+                'kind' => $input['kind'],
+                'address_line' => $input['address_line'],
+                'entrance' => $input['entrance'],
+                'floor' => $input['floor'],
+                'apartment' => $input['apartment'],
+                'is_primary' => $input['is_primary'],
+            ];
+        }
         return [
             'type' => $input['type'],
             'number_ciphertext' => Crypt::encryptString($input['number']),
@@ -158,9 +187,10 @@ final class EmployeePrivateRecords
         ];
     }
 
-    private function clearPrimary(string $company, string $employee, ?string $excluding = null): void
+    private function clearPrimary(string $company, string $employee, string $section, ?string $excluding = null): void
     {
-        $query = DB::table('employee_identity_documents')
+        $table = $section === 'address' ? 'employee_private_addresses' : 'employee_identity_documents';
+        $query = DB::table($table)
             ->where('company_id', $company)->where('employee_id', $employee)
             ->whereNull('archived_at')->where('is_primary', true);
         if ($excluding !== null) $query->where('id', '<>', $excluding);
