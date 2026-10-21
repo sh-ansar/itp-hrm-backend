@@ -150,6 +150,7 @@ final class EmployeeShowController extends Controller
                 'extended_sections_visible' => $extended,
                 'profile_writes_enabled' => $personnelWritesEnabled,
                 'private_profile_writes_enabled' => $personnelWritesEnabled,
+                'private_address_writes_enabled' => $personnelWritesEnabled,
                 'private_family_truncated' => $extended && $privateProfile['family_truncated'],
                 'private_identities_truncated' => $extended && $privateProfile['identity_documents_truncated'],
                 'private_addresses_truncated' => $extended && $privateProfile['addresses_truncated'],
