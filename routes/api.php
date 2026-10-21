@@ -242,11 +242,11 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/companies/{company}/employees/{employee}/private-profile/{section}', [EmployeePrivateProfileController::class, 'update'])
             ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['personal', 'military']);
         Route::post('/companies/{company}/employees/{employee}/private-records/{section}', [EmployeePrivateRecordController::class, 'store'])
-            ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['family', 'identity']);
+            ->whereUuid('company')->whereUuid('employee')->whereIn('section', ['family', 'identity', 'address']);
         Route::put('/companies/{company}/employees/{employee}/private-records/{section}/{record}', [EmployeePrivateRecordController::class, 'update'])
-            ->whereUuid('company')->whereUuid('employee')->whereUuid('record')->whereIn('section', ['family', 'identity']);
+            ->whereUuid('company')->whereUuid('employee')->whereUuid('record')->whereIn('section', ['family', 'identity', 'address']);
         Route::delete('/companies/{company}/employees/{employee}/private-records/{section}/{record}', [EmployeePrivateRecordController::class, 'destroy'])
-            ->whereUuid('company')->whereUuid('employee')->whereUuid('record')->whereIn('section', ['family', 'identity']);
+            ->whereUuid('company')->whereUuid('employee')->whereUuid('record')->whereIn('section', ['family', 'identity', 'address']);
         Route::post('/companies/{company}/employees/{employee}/education', [EmployeeEducationController::class, 'store'])
             ->whereUuid('company')->whereUuid('employee');
         Route::put('/companies/{company}/employees/{employee}/education/{record}', [EmployeeEducationController::class, 'update'])
