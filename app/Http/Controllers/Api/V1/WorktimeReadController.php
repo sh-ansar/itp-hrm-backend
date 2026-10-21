@@ -80,7 +80,8 @@ final class WorktimeReadController extends Controller
             'meta' => [
                 'source' => 'worktime_entries',
                 'read_only' => true,
-                'partial_period' => $entries->count() < $from->daysInMonth,
+                'recorded_days' => $entries->count(),
+                'calendar_days' => $from->daysInMonth,
             ],
         ]);
     }
