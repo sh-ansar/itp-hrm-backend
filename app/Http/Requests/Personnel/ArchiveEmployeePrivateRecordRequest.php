@@ -10,7 +10,7 @@ final class ArchiveEmployeePrivateRecordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        abort_unless(in_array($this->route('section'), ['family', 'identity'], true), 404);
+        abort_unless(in_array($this->route('section'), ['family', 'identity', 'address'], true), 404);
         return app(EmployeePrivateWriteAuthorization::class)->canWrite($this);
     }
 
