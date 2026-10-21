@@ -16,6 +16,75 @@ use Illuminate\Support\Facades\DB;
 
 final class WorktimeReadController extends Controller
 {
+    /**
+     * Read-only employee-month projection for the employee profile.
+     * No write-feature flag: visibility is the same scoped rule as employee details.
+     * Null means "not recorded", never an invented zero.
+     */
+    public function employeeMonth(
+        Request $request,
+        string $company,
+        string $employee,
+        EmployeeVisibility $visibility,
+        HrAuditWriter $audit,
+    ): JsonResponse {
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+        ]);
+        // Access the target through the existing role- and department-scoped
+        // employee query. Hidden employee IDs must not be distinguishable.
+        $visible = $visibility->visibleFor($request->user(), $company);
+        abort_unless($visible->where('employees.id', $employee)->exists(), 404);
+
+        [$from, $to] = $this->monthBounds($validated['month']);
+        $entries = DB::table('worktime_entries')
+            ->where('employee_id', $employee)
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->select('work_date', 'planned_minutes', 'worked_minutes', 'absence_minutes', 'overtime_minutes')
+            ->orderBy('work_date')
+            ->limit(32)->get();
+
+        $sum = static function (string $column) use ($entries): ?int {
+            $recorded = $entries->filter(static fn (object $row): bool => $row->{$column} !== null);
+            return $recorded->isEmpty() ? null : (int) $recorded->sum(static fn (object $row): int => (int) $row->{$column});
+        };
+        $worked = $entries->filter(static fn (object $row): bool => $row->worked_minutes !== null);
+        $presentDays = $worked->isEmpty()
+            ? null
+            : $worked->filter(static fn (object $row): bool => (int) $row->worked_minutes > 0)->count();
+
+        $this->auditRead($audit, $request, $company, 'employee_month', $validated['month'], $entries->count());
+
+        return response()->json([
+            'data' => [
+                'employee_id' => $employee,
+                'month' => $validated['month'],
+                'summary' => [
+                    'days_recorded' => $entries->count(),
+                    'present_days' => $presentDays,
+                    'planned_minutes' => $sum('planned_minutes'),
+                    'worked_minutes' => $sum('worked_minutes'),
+                    'absence_minutes' => $sum('absence_minutes'),
+                    'overtime_minutes' => $sum('overtime_minutes'),
+                    // The timesheet data model has no lateness field.
+                    'lateness_minutes' => null,
+                ],
+                'days' => $entries->map(static fn (object $row): array => [
+                    'date' => $row->work_date,
+                    'planned_minutes' => $row->planned_minutes !== null ? (int) $row->planned_minutes : null,
+                    'worked_minutes' => $row->worked_minutes !== null ? (int) $row->worked_minutes : null,
+                    'absence_minutes' => $row->absence_minutes !== null ? (int) $row->absence_minutes : null,
+                    'overtime_minutes' => $row->overtime_minutes !== null ? (int) $row->overtime_minutes : null,
+                ])->values()->all(),
+            ],
+            'meta' => [
+                'source' => 'worktime_entries',
+                'read_only' => true,
+                'partial_period' => $entries->count() < $from->daysInMonth,
+            ],
+        ]);
+    }
+
     public function timesheet(
         Request $request,
         string $company,
