@@ -98,6 +98,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/staffing-history', StaffingHistoryController::class)
             ->whereUuid('company');
 
+        Route::get('/companies/{company}/worktime/employees/{employee}/monthly-summary', [WorktimeReadController::class, 'employeeMonth'])
+            ->whereUuid('company')->whereUuid('employee');
         Route::get('/companies/{company}/worktime/timesheet', [WorktimeReadController::class, 'timesheet'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/timesheet/{employee}', [WorktimeTimesheetWriteController::class, 'show'])
