@@ -137,3 +137,12 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - [x] Frontend PR #161 merged after five green checks; no read permissions broadened, no production flags enabled.
 - [ ] Review frontend PR #162 (confirmation before executed hire/transfer/termination); tests must prove Cancel does not modify staffing assignments and authorized confirmation still works.
 - [ ] Production activation and full E2E with owned PostgreSQL/MinIO, backups, HTTPS and verified organization-specific role matrix remain outstanding.
+
+## 22 October 2026 — Staged manager and HR leave review
+
+- Added default-OFF HRM_LEAVE_MANAGER_APPROVAL_ENABLED and an additive review migration. Existing legacy workflow remains compatible while OFF.
+- With the flag ON, the employee submits, an explicitly department-scoped manager recommends/rejects, then a different HR/admin makes the final decision. Manager approval does not publish or deduct leave. Confidential request fields and evidence metadata are redacted from manager reads/writes.
+- Security tests cover stage bypass, revoked/transferred scope, company boundaries, self-review, repeated/stale decisions, forged metadata, role change and confidentiality; legacy workflow/evidence/balance suites remain required.
+- Verification: final SQLite suite and PostgreSQL CI results are recorded on the PR.
+- Production untouched: no config activation, migration or employee-data changes. Paired Vue/real-browser verification remains required before activation. Notifications and approved-leave reversals remain separate unfinished work.
+- Maintainer contract: docs/LEAVE-MANAGER-REVIEW.md.

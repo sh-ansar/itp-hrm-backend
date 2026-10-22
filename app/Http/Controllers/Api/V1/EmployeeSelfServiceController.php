@@ -47,7 +47,8 @@ final class EmployeeSelfServiceController extends Controller
             ->orderByDesc('r.created_at')->orderByDesc('r.id')
             ->select('r.id', 'r.leave_type_id', 't.name as leave_type_name', 't.category',
                 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'r.planned_started_on',
-                'r.planned_ended_on', 'r.planned_days', 'r.status', 'r.revision', 'r.note', 'r.decision_comment')
+                'r.planned_ended_on', 'r.planned_days', 'r.status', 'r.revision', 'r.note', 'r.decision_comment',
+                'r.manager_recommendation', 'r.manager_reviewed_at', 'r.manager_decision_comment')
             ->paginate(25, ['*'], 'requests_page') : null;
         $leaves = $id ? DB::table('employee_leaves as l')
             ->join('leave_types as t', 't.id', '=', 'l.leave_type_id')
@@ -62,6 +63,7 @@ final class EmployeeSelfServiceController extends Controller
                 ->orderBy('name')->get(['id', 'name', 'category']) : [],
         ], 'meta' => ['can_request' => $id !== null && (bool) config('hrm.leave_writes_enabled', false),
             'requests_last_page' => $requests?->lastPage() ?? 1, 'leaves_last_page' => $leaves?->lastPage() ?? 1,
+            'manager_approval_required' => (bool) config('hrm.leave_manager_approval_enabled', false),
             'protected_evidence_uploads_enabled' => (bool) config('hrm.protected_leave_evidence_enabled', false),
             'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false)]])
             ->header('Cache-Control', 'private, no-store');

@@ -14,6 +14,10 @@ final class LeaveWorkflowRequest extends FormRequest
         $authorization = app(WorkforceAuthorization::class);
         $company = (string) $this->route('company');
 
+        if (str_ends_with($this->path(), '/manager-decision')) {
+            return $authorization->canReviewLeaveRequests($this->user(), $company);
+        }
+
         return str_ends_with($this->path(), '/decision')
             ? $authorization->canApproveLeaveRequests($this->user(), $company)
             : $authorization->canManageLeaveRequests($this->user(), $company);
@@ -21,7 +25,7 @@ final class LeaveWorkflowRequest extends FormRequest
 
     public function rules(): array
     {
-        $decision = str_ends_with($this->path(), '/decision');
+        $decision = str_ends_with($this->path(), '/decision') || str_ends_with($this->path(), '/manager-decision');
 
         return [
             'revision' => ['required', 'integer', 'between:1,2147483646'],

@@ -32,6 +32,7 @@
         <env name="HRM_DOCUMENT_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_WORKTIME_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_LEAVE_WRITES_ENABLED" value="false" force="true"/>
+        <env name="HRM_LEAVE_MANAGER_APPROVAL_ENABLED" value="false" force="true"/>
         <env name="HRM_BONUS_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_ROLE_MANAGEMENT_ENABLED" value="false" force="true"/>
         <env name="HRM_BROWSER_LOGIN_ENABLED" value="false" force="true"/>

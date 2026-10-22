@@ -16,7 +16,8 @@ final class LeaveRequestController extends Controller
     public function index(Request $request, string $company, WorkforceAuthorization $permissions): JsonResponse
     {
         abort_unless((bool) config('hrm.leave_writes_enabled', false), 404);
-        abort_unless($permissions->canManageLeaveRequests($request->user(), $company), 403);
+        $manager = $permissions->canReviewLeaveRequests($request->user(), $company);
+        abort_unless($manager || $permissions->canManageLeaveRequests($request->user(), $company), 403);
         $filters = $request->validate([
             'status' => ['sometimes', 'in:draft,submitted,approved,rejected,cancelled'],
             'page' => ['sometimes', 'integer', 'min:1'],
@@ -35,20 +36,42 @@ final class LeaveRequestController extends Controller
             ->where('lr.company_id', $company)
             ->select('lr.id', 'lr.employee_id', 'lr.leave_type_id',
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
+                'lr.manager_recommendation', 'lr.manager_reviewed_by_user_id', 'lr.manager_reviewed_at', 'lr.manager_decision_comment',
                 'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
                 'lr.created_by_user_id', 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'lt.name as leave_type_name',
                 'e.last_name', 'e.first_name', 'e.middle_name', 'lt.category');
+        if ($manager) {
+            // Current department scope is authoritative, including transferred employees.
+            $visible = app(\App\Domain\Personnel\EmployeeVisibility::class)
+                ->visibleFor($request->user(), $company)->select('employees.id');
+            $query->whereIn('lr.employee_id', $visible)->whereIn('lr.status', ['submitted', 'approved', 'rejected']);
+        }
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
 
         $page = $query->orderByDesc('lr.created_at')->orderBy('lr.id')->paginate(50);
+        $items = $page->items();
+        if ($manager) {
+            // Department scheduling needs dates and decisions, never health/category,
+            // employee notes, private PDF metadata or the internal type identity.
+            foreach ($items as $row) {
+                foreach (['leave_type_id', 'leave_type_name', 'category', 'note',
+                    'decision_comment', 'evidence_status', 'evidence_revision', 'published_leave_id'] as $field) {
+                    $row->{$field} = null;
+                }
+                $row->manager_decision_comment = null;
+            }
+        }
         return response()->json([
-            'data' => $page->items(),
+            'data' => $items,
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'total' => $page->total(),
+                'manager_approval_required' => (bool) config('hrm.leave_manager_approval_enabled', false),
+                'can_review_leave_requests' => $manager,
+                'can_manage_leave_requests' => $permissions->canManageLeaveRequests($request->user(), $company),
                 'can_approve_leave_requests' => $permissions->canApproveLeaveRequests($request->user(), $company),
-                'protected_evidence_uploads_enabled' => (bool) config('hrm.protected_leave_evidence_enabled', false),
+                'protected_evidence_uploads_enabled' => ! $manager && (bool) config('hrm.protected_leave_evidence_enabled', false),
                 'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false),
             ],
         ]);
@@ -84,6 +107,16 @@ final class LeaveRequestController extends Controller
         $data = $request->validated();
         return response()->json(['data' => $workflow->cancel(
             $request->user(), $company, $leaveRequest, (int) $data['revision'],
+        )]);
+    }
+
+    public function managerDecision(
+        LeaveWorkflowRequest $request, string $company, string $leaveRequest, LeavePlanWorkflow $workflow,
+    ): JsonResponse {
+        $data = $request->validated();
+        return response()->json(['data' => $workflow->managerDecide(
+            $request->user(), $company, $leaveRequest, (int) $data['revision'],
+            $data['decision'], $data['comment'] ?? null,
         )]);
     }
 
