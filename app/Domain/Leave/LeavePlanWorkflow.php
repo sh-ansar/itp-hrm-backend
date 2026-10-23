@@ -127,6 +127,12 @@ final class LeavePlanWorkflow
             $record = $this->loadLocked($company, $id);
             $this->assertRevision($record, $expected);
             abort_unless($record->status === 'submitted', 409, 'Only submitted leave requests can be decided.');
+            if (config('hrm.leave_manager_approval_enabled', false)) {
+                abort_unless($record->manager_recommendation === 'approved', 409,
+                    'Department manager review is required before the final HR decision.');
+                abort_if((int) $record->manager_reviewed_by_user_id === (int) $actor->getAuthIdentifier(), 403,
+                    'The manager reviewer cannot also make the final HR decision.');
+            }
             // Four-eyes control is enforced by the server, not inferred from a button.
             abort_if((int) $record->created_by_user_id === (int) $actor->getAuthIdentifier(), 403,
                 'A person cannot approve or reject their own leave request.');
@@ -193,6 +199,46 @@ final class LeavePlanWorkflow
                 ]);
 
             return $this->serialize(array_merge((array) $record, $updates));
+        }, 3);
+    }
+
+    public function managerDecide(User $actor, string $company, string $id, int $expected, string $decision, ?string $comment): array
+    {
+        abort_unless(config('hrm.leave_manager_approval_enabled', false), 404);
+        return DB::transaction(function () use ($actor, $company, $id, $expected, $decision, $comment): array {
+            $this->lockCompany($company);
+            abort_unless(app(\App\Domain\Worktime\WorkforceAuthorization::class)
+                ->canReviewLeaveRequests($actor, $company), 403);
+            $record = $this->loadLocked($company, $id);
+            abort_unless(app(\App\Domain\Personnel\EmployeeVisibility::class)
+                ->visibleFor($actor, $company)->where('employees.id', $record->employee_id)->exists(), 404);
+            $this->assertRevision($record, $expected);
+            abort_unless($record->status === 'submitted' && $record->manager_recommendation === null, 409,
+                'Only pending, unreviewed requests can receive a manager decision.');
+            abort_if((int) $record->created_by_user_id === (int) $actor->getAuthIdentifier()
+                || DB::table('employee_user_links')->where('company_id', $company)
+                    ->where('user_id', $actor->getAuthIdentifier())->where('employee_id', $record->employee_id)->exists(), 403,
+                'A manager cannot review their own leave request.');
+            $updates = [
+                'manager_recommendation' => $decision,
+                'manager_reviewed_by_user_id' => $actor->getAuthIdentifier(),
+                'manager_reviewed_at' => now(),
+                'manager_decision_comment' => $comment,
+                'status' => $decision === 'rejected' ? 'rejected' : 'submitted',
+                'revision' => $expected + 1,
+                'updated_at' => now(),
+            ];
+            $this->updateRevision($company, $id, $expected, $updates);
+            $this->audit->record($actor, $company, $decision === 'approved'
+                ? HrAuditAction::LeaveRequestManagerApproved : HrAuditAction::LeaveRequestManagerRejected, null, [
+                    'request_id' => $id, 'employee_id' => $record->employee_id, 'revision' => $expected + 1,
+                ]);
+            // Return only scheduling fields to the manager, matching the redacted read contract.
+            return [
+                'id' => $id, 'employee_id' => $record->employee_id, 'status' => $updates['status'],
+                'revision' => $updates['revision'], 'manager_recommendation' => $decision,
+                'manager_reviewed_by_user_id' => $actor->getAuthIdentifier(),
+            ];
         }, 3);
     }
 
@@ -285,6 +331,10 @@ final class LeavePlanWorkflow
             'revision' => (int) $row['revision'],
             'note' => $row['note'] ?? null,
             'decision_comment' => $row['decision_comment'] ?? null,
+            'manager_recommendation' => $row['manager_recommendation'] ?? null,
+            'manager_reviewed_by_user_id' => $row['manager_reviewed_by_user_id'] ?? null,
+            'manager_reviewed_at' => $row['manager_reviewed_at'] ?? null,
+            'manager_decision_comment' => $row['manager_decision_comment'] ?? null,
             'published_leave_id' => $row['published_leave_id'] ?? null,
         ];
     }

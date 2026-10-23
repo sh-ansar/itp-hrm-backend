@@ -52,7 +52,10 @@ final class CompanyCapabilities
             'directories.write' => $staff && (bool) config('hrm.directory_writes_enabled', false),
             'worktime.calendar.edit' => $admin && (bool) config('hrm.worktime_writes_enabled', false),
             'leave.requests.manage' => $staff && (bool) config('hrm.leave_writes_enabled', false),
-            'leave.requests.approve' => $admin && (bool) config('hrm.leave_writes_enabled', false),
+            'leave.requests.approve' => ($admin || ($hr && (bool) config('hrm.leave_manager_approval_enabled', false)))
+                && (bool) config('hrm.leave_writes_enabled', false),
+            'leave.requests.review' => $manager && (bool) config('hrm.leave_manager_approval_enabled', false)
+                && (bool) config('hrm.leave_writes_enabled', false),
             'leave.types.manage' => $admin && (bool) config('hrm.leave_writes_enabled', false),
             'roles.assign' => $admin && (bool) config('hrm.role_management_enabled', false),
         ];

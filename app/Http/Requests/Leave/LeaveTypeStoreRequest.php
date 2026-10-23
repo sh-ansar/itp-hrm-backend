@@ -13,7 +13,7 @@ final class LeaveTypeStoreRequest extends FormRequest
     {
         abort_unless((bool) config('hrm.leave_writes_enabled', false), 404);
 
-        return app(WorkforceAuthorization::class)->canApproveLeaveRequests(
+        return app(WorkforceAuthorization::class)->canManageLeaveTypes(
             $this->user(), (string) $this->route('company'),
         );
     }

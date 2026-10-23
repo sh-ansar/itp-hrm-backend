@@ -145,6 +145,8 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')->whereUuid('leaveRequest');
         Route::post('/companies/{company}/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])
             ->whereUuid('company')->whereUuid('leaveRequest');
+        Route::post('/companies/{company}/leave-requests/{leaveRequest}/manager-decision', [LeaveRequestController::class, 'managerDecision'])
+            ->whereUuid('company')->whereUuid('leaveRequest');
         Route::post('/companies/{company}/leave-requests/{leaveRequest}/decision', [LeaveRequestController::class, 'decision'])
             ->whereUuid('company')->whereUuid('leaveRequest');
         Route::post('/companies/{company}/leave-requests/{leaveRequest}/evidence/file', [ProtectedLeaveEvidenceController::class, 'upload'])

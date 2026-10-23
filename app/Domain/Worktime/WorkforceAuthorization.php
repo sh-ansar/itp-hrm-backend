@@ -20,7 +20,19 @@ final class WorkforceAuthorization
 
     public function canApproveLeaveRequests(User $actor, string $companyId): bool
     {
+        return $this->companyRoleIs($actor, $companyId, config('hrm.leave_manager_approval_enabled', false)
+            ? ['company_admin', 'hr_specialist'] : ['company_admin']);
+    }
+
+    public function canManageLeaveTypes(User $actor, string $companyId): bool
+    {
         return $this->companyRoleIs($actor, $companyId, ['company_admin']);
+    }
+
+    public function canReviewLeaveRequests(User $actor, string $companyId): bool
+    {
+        return config('hrm.leave_manager_approval_enabled', false)
+            && $this->companyRoleIs($actor, $companyId, ['department_manager']);
     }
 
     /** Protected medical/parental leave details are not a department-wide permission. */

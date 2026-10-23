@@ -32,7 +32,7 @@ final class LeaveTypeController extends Controller
         return response()->json([
             'data' => $types,
             'meta' => [
-                'can_manage_leave_types' => $permissions->canApproveLeaveRequests($request->user(), $company),
+                'can_manage_leave_types' => $permissions->canManageLeaveTypes($request->user(), $company),
                 'supported_categories' => $canReadProtected
                     ? ['ordinary', 'maternity', 'childcare', 'medical'] : ['ordinary'],
             ],
