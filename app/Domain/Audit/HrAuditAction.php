@@ -55,6 +55,9 @@ enum HrAuditAction: string
     case WorktimeRecordsListed = 'worktime.records_listed';
     case WorktimeCalendarDaysUpserted = 'worktime.calendar_days_upserted';
     case WorktimeEntriesUpserted = 'worktime.entries_upserted';
+    case WorktimePeriodSubmitted = 'worktime.period_submitted';
+    case WorktimePeriodApproved = 'worktime.period_approved';
+    case WorktimePeriodReopened = 'worktime.period_reopened';
     case WorkScheduleCreated = 'worktime.schedule_created';
     case WorkScheduleUpdated = 'worktime.schedule_updated';
     case WorkScheduleAssigned = 'worktime.schedule_assigned';
