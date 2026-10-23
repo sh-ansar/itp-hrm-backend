@@ -67,6 +67,7 @@ enum HrAuditAction: string
     case LeaveRequestUpdated = 'leave.request_updated';
     case LeaveRequestSubmitted = 'leave.request_submitted';
     case LeaveRequestCancelled = 'leave.request_cancelled';
+    case LeaveRequestApprovedReversed = 'leave.approved_request_reversed';
     case LeaveRequestApproved = 'leave.request_approved';
     case LeaveRequestManagerApproved = 'leave.request_manager_approved';
     case LeaveRequestManagerRejected = 'leave.request_manager_rejected';

@@ -23,6 +23,7 @@ return [
 
     // Leave mutations are not released with the first read-only leave contract.
     'leave_writes_enabled' => (bool) env('HRM_LEAVE_WRITES_ENABLED', false),
+    'approved_leave_reversal_enabled' => (bool) env('HRM_APPROVED_LEAVE_REVERSAL_ENABLED', false),
 
     // Opt-in staged review; legacy approvals remain unchanged until rollout.
     'leave_manager_approval_enabled' => (bool) env('HRM_LEAVE_MANAGER_APPROVAL_ENABLED', false),

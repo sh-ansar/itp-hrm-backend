@@ -148,6 +148,14 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - Maintainer contract: docs/LEAVE-MANAGER-REVIEW.md.
 
 
+## 23 October 2026 — Future approved leave reversal
+
+- Added a separate default-OFF, company-admin-only reversal endpoint with required trimmed reason, optimistic revisions and company/own-employee restrictions.
+- Preserves approved leave and request history, records actor/time/reason, and atomically audits cancellation. Schedule, employee workspace, balance and overlap projections now exclude cancelled bookings; rebooking is possible.
+- Started/actual attendance, closed entitlement years, recorded timesheet entries and locked timesheet periods prevent automatic reversal. Retroactive corrections remain separate HR policy work.
+- Isolated PHP 8.4.26/SQLite regression: 26 tests, 364 assertions passed, including four new reversal tests. PostgreSQL CI and paired UI acceptance remain required before activation.
+- No production data or feature flags changed.
+
 ## 23 October 2026 — period acceptance follow-up (local, not production)
 
 - Extended WorktimePeriodReviewTest with department-manager/employee/foreign-company denial, absence of period/audit mutations after denied requests, actual administrator self-approval denial, and rejected reopen reasons without side effects.

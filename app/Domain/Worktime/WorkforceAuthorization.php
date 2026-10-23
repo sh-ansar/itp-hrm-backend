@@ -24,6 +24,12 @@ final class WorkforceAuthorization
             ? ['company_admin', 'hr_specialist'] : ['company_admin']);
     }
 
+    public function canReverseApprovedLeave(User $actor, string $companyId): bool
+    {
+        return config('hrm.approved_leave_reversal_enabled', false)
+            && $this->companyRoleIs($actor, $companyId, ['company_admin']);
+    }
+
     public function canManageLeaveTypes(User $actor, string $companyId): bool
     {
         return $this->companyRoleIs($actor, $companyId, ['company_admin']);

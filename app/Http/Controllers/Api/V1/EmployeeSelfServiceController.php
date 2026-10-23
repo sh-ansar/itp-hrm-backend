@@ -50,7 +50,7 @@ final class EmployeeSelfServiceController extends Controller
                 'r.planned_ended_on', 'r.planned_days', 'r.status', 'r.revision', 'r.note', 'r.decision_comment',
                 'r.manager_recommendation', 'r.manager_reviewed_at', 'r.manager_decision_comment')
             ->paginate(25, ['*'], 'requests_page') : null;
-        $leaves = $id ? DB::table('employee_leaves as l')
+        $leaves = $id ? DB::table('employee_leaves as l')->whereNull('l.cancelled_at')
             ->join('leave_types as t', 't.id', '=', 'l.leave_type_id')
             ->where('t.company_id', $company)->where('l.employee_id', $id)
             ->orderByDesc('l.planned_started_on')->orderBy('l.id')
