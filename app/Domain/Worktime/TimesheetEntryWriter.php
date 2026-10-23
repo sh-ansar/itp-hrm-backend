@@ -18,6 +18,13 @@ final class TimesheetEntryWriter
         return DB::transaction(function () use ($actor, $companyId, $employeeId, $month, $days): array {
             DB::table('companies')->where('id', $companyId)->lockForUpdate()->firstOrFail();
 
+            if (config('hrm.worktime_period_approvals_enabled', false)) {
+                $status = DB::table('worktime_periods')->where('company_id', $companyId)
+                    ->where('month', $month)->value('status');
+                abort_unless($status === null || $status === 'draft', 409,
+                    'The timesheet period is submitted or approved and cannot be edited.');
+            }
+
             $employeeExists = DB::table('employees')
                 ->where('id', $employeeId)
                 ->where('company_id', $companyId)

@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
 use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
+use App\Http\Controllers\Api\V1\WorktimePeriodController;
 use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
 use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
@@ -101,6 +102,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/worktime/employees/{employee}/monthly-summary', [WorktimeReadController::class, 'employeeMonth'])
             ->whereUuid('company')->whereUuid('employee');
         Route::get('/companies/{company}/worktime/timesheet', [WorktimeReadController::class, 'timesheet'])
+            ->whereUuid('company');
+        Route::get('/companies/{company}/worktime/periods', [WorktimePeriodController::class, 'show'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/worktime/periods/transition', [WorktimePeriodController::class, 'transition'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/timesheet/{employee}', [WorktimeTimesheetWriteController::class, 'show'])
             ->whereUuid('company')->whereUuid('employee');
