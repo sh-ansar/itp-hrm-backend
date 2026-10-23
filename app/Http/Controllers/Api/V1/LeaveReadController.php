@@ -34,7 +34,7 @@ final class LeaveReadController extends Controller
         $to = CarbonImmutable::create($year, 12, 31)->endOfDay()->toDateString();
         $today = now()->toDateString();
 
-        $base = DB::table('employee_leaves as l')
+        $base = DB::table('employee_leaves as l')->whereNull('l.cancelled_at')
             ->joinSub(
                 $visibility->visibleFor($request->user(), $company),
                 've',

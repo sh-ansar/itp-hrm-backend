@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Leave\LeavePlanWorkflow;
+use App\Domain\Leave\ApprovedLeaveReversal;
+use App\Http\Requests\Leave\ReverseApprovedLeaveRequest;
 use App\Domain\Worktime\WorkforceAuthorization;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Leave\LeavePlanSaveRequest;
@@ -38,7 +40,7 @@ final class LeaveRequestController extends Controller
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
                 'lr.manager_recommendation', 'lr.manager_reviewed_by_user_id', 'lr.manager_reviewed_at', 'lr.manager_decision_comment',
                 'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
-                'lr.created_by_user_id', 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'lt.name as leave_type_name',
+                'lr.reversed_at', 'lr.reversal_reason', 'lr.created_by_user_id', 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'lt.name as leave_type_name',
                 'e.last_name', 'e.first_name', 'e.middle_name', 'lt.category');
         if ($manager) {
             // Current department scope is authoritative, including transferred employees.
@@ -55,7 +57,7 @@ final class LeaveRequestController extends Controller
             // employee notes, private PDF metadata or the internal type identity.
             foreach ($items as $row) {
                 foreach (['leave_type_id', 'leave_type_name', 'category', 'note',
-                    'decision_comment', 'evidence_status', 'evidence_revision', 'published_leave_id'] as $field) {
+                    'decision_comment', 'reversal_reason', 'reversed_at', 'evidence_status', 'evidence_revision', 'published_leave_id'] as $field) {
                     $row->{$field} = null;
                 }
                 $row->manager_decision_comment = null;
@@ -70,6 +72,7 @@ final class LeaveRequestController extends Controller
                 'manager_approval_required' => (bool) config('hrm.leave_manager_approval_enabled', false),
                 'can_review_leave_requests' => $manager,
                 'can_manage_leave_requests' => $permissions->canManageLeaveRequests($request->user(), $company),
+                'can_reverse_approved_leave' => $permissions->canReverseApprovedLeave($request->user(), $company),
                 'can_approve_leave_requests' => $permissions->canApproveLeaveRequests($request->user(), $company),
                 'protected_evidence_uploads_enabled' => ! $manager && (bool) config('hrm.protected_leave_evidence_enabled', false),
                 'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false),
@@ -107,6 +110,15 @@ final class LeaveRequestController extends Controller
         $data = $request->validated();
         return response()->json(['data' => $workflow->cancel(
             $request->user(), $company, $leaveRequest, (int) $data['revision'],
+        )]);
+    }
+
+    public function reverseApproved(
+        ReverseApprovedLeaveRequest $request, string $company, string $leaveRequest, ApprovedLeaveReversal $workflow,
+    ): JsonResponse {
+        $data = $request->validated();
+        return response()->json(['data' => $workflow->reverse(
+            $request->user(), $company, $leaveRequest, (int) $data['revision'], $data['reason'],
         )]);
     }
 

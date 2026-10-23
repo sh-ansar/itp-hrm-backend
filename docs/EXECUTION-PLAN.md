@@ -146,3 +146,12 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - Verification: final SQLite suite and PostgreSQL CI results are recorded on the PR.
 - Production untouched: no config activation, migration or employee-data changes. Paired Vue/real-browser verification remains required before activation. Notifications and approved-leave reversals remain separate unfinished work.
 - Maintainer contract: docs/LEAVE-MANAGER-REVIEW.md.
+
+
+## 23 October 2026 — Future approved leave reversal
+
+- Added a separate default-OFF, company-admin-only reversal endpoint with required trimmed reason, optimistic revisions and company/own-employee restrictions.
+- Preserves approved leave and request history, records actor/time/reason, and atomically audits cancellation. Schedule, employee workspace, balance and overlap projections now exclude cancelled bookings; rebooking is possible.
+- Started/actual attendance, closed entitlement years, recorded timesheet entries and locked timesheet periods prevent automatic reversal. Retroactive corrections remain separate HR policy work.
+- Isolated PHP 8.4.26/SQLite regression: 26 tests, 364 assertions passed, including four new reversal tests. PostgreSQL CI and paired UI acceptance remain required before activation.
+- No production data or feature flags changed.

@@ -36,7 +36,7 @@ final class LeaveBalanceService
         $this->checkYear($year);
         $from = sprintf('%04d-01-01', $year);
         $to = sprintf('%04d-12-31', $year);
-        $bookedPeriods = DB::table('employee_leaves')
+        $bookedPeriods = DB::table('employee_leaves')->whereNull('cancelled_at')
             ->where('employee_id', $employee)->where('leave_type_id', $type->id)
             ->where('planned_started_on', '<=', $to)->where('planned_ended_on', '>=', $from)
             ->get(['planned_started_on', 'planned_ended_on', 'planned_days']);

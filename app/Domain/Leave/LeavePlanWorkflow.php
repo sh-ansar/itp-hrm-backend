@@ -276,7 +276,7 @@ final class LeavePlanWorkflow
             throw ValidationException::withMessages(['planned_started_on' => 'Leave overlaps an existing active request.']);
         }
 
-        if (DB::table('employee_leaves')
+        if (DB::table('employee_leaves')->whereNull('cancelled_at')
             ->where('employee_id', $employee)
             ->where('planned_started_on', '<=', $to)
             ->where('planned_ended_on', '>=', $from)

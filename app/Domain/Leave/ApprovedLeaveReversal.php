@@ -5,6 +5,8 @@ namespace App\Domain\Leave;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Models\User;
+use App\Domain\Worktime\WorkforceAuthorization;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 final class ApprovedLeaveReversal
@@ -18,10 +20,19 @@ final class ApprovedLeaveReversal
     public function reverse(User $actor, string $company, string $id, int $expectedRevision, string $reason): array
     {
         abort_unless(config('hrm.approved_leave_reversal_enabled', false), 404);
+        abort_unless(app(WorkforceAuthorization::class)->canReverseApprovedLeave($actor, $company), 403);
+        $reason = trim($reason);
+        Validator::make(compact('reason', 'expectedRevision'), [
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+            'expectedRevision' => ['required', 'integer', 'between:1,2147483646'],
+        ])->validate();
         return DB::transaction(function () use ($actor, $company, $id, $expectedRevision, $reason): array {
             DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
             $request = DB::table('leave_requests')->where('company_id', $company)
                 ->where('id', $id)->lockForUpdate()->firstOrFail();
+            abort_if(DB::table('employee_user_links')->where('company_id', $company)
+                ->where('user_id', $actor->getAuthIdentifier())->where('employee_id', $request->employee_id)->exists(), 403,
+                'A person cannot reverse their own approved leave.');
             abort_unless((int) $request->revision === $expectedRevision, 409, 'Leave request revision changed.');
             abort_unless($request->status === 'approved' && $request->published_leave_id, 409,
                 'Only an approved and published leave can be reversed.');
@@ -45,6 +56,11 @@ final class ApprovedLeaveReversal
             abort_if(DB::table('worktime_entries')->where('employee_id', $request->employee_id)
                 ->whereBetween('work_date', [$request->planned_started_on, $request->planned_ended_on])
                 ->exists(), 409, 'Recorded attendance prevents automatic reversal.');
+
+            abort_if(DB::table('worktime_periods')->where('company_id', $company)
+                ->whereBetween('month', [substr($request->planned_started_on, 0, 7), substr($request->planned_ended_on, 0, 7)])
+                ->whereIn('status', ['submitted', 'approved'])->exists(), 409,
+                'A locked timesheet period prevents automatic reversal.');
 
             $now = now();
             $changed = DB::table('employee_leaves')->where('id', $leave->id)
