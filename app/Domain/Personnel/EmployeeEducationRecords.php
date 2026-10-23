@@ -23,7 +23,7 @@ final class EmployeeEducationRecords
             ->where('employee_id', $employeeId)
             ->whereNull('archived_at')
             ->select('id', 'education_type', 'organization', 'specialization',
-                'started_on', 'ended_on', 'document_reference', 'revision')
+                'started_on', 'ended_on', 'started_year', 'ended_year', 'document_reference', 'revision')
             ->orderByDesc('ended_on')
             ->orderByDesc('started_on')
             ->orderBy('id')
@@ -38,6 +38,8 @@ final class EmployeeEducationRecords
                 'specialization' => $row->specialization,
                 'started_on' => $row->started_on,
                 'ended_on' => $row->ended_on,
+                'started_year' => $row->started_year === null ? null : (int) $row->started_year,
+                'ended_year' => $row->ended_year === null ? null : (int) $row->ended_year,
                 'document_reference' => $row->document_reference,
                 'revision' => (int) $row->revision,
             ])->values()->all(),
@@ -70,11 +72,16 @@ final class EmployeeEducationRecords
             $existing = $this->activeRecord($company, $employee, $record);
             $expected = (int) $data['revision'];
             $this->assertRevision($existing, $expected);
+            $changes = $this->fields($data);
+            // Old v1 clients omit year fields; never clear stored precision.
+            foreach (['started_year', 'ended_year'] as $field) {
+                if (! array_key_exists($field, $data)) unset($changes[$field]);
+            }
             $updated = DB::table('employee_education_records')
                 ->where('company_id', $company)->where('employee_id', $employee)
                 ->where('id', $record)->whereNull('archived_at')->where('revision', $expected)
                 ->update([
-                    ...$this->fields($data),
+                    ...$changes,
                     'revision' => $expected + 1, 'updated_at' => now(),
                 ]);
             abort_unless($updated === 1, 409, 'Education record changed; reload before saving.');
@@ -134,6 +141,8 @@ final class EmployeeEducationRecords
             'organization' => $data['organization'],
             'started_on' => $data['started_on'],
             'ended_on' => $data['ended_on'],
+            'started_year' => $data['started_year'] ?? null,
+            'ended_year' => $data['ended_year'] ?? null,
             'specialization' => $data['specialization'],
             'document_reference' => $data['document_reference'],
         ];
