@@ -115,4 +115,62 @@ final class WorktimePeriodReviewTest extends TestCase
         ])->assertStatus(409);
         $this->assertDatabaseMissing('worktime_periods', ['company_id' => $company]);
     }
+    public function test_manager_employee_and_foreign_admin_cannot_read_or_change_company_periods(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_period_approvals_enabled', true);
+        [$admin, , $staff, $company, , $url] = $this->fixture();
+        $manager = User::factory()->create();
+        $foreignAdmin = User::factory()->create();
+        $otherCompany = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $otherCompany, 'name' => 'Other synthetic company']);
+        DB::table('company_user_roles')->insert([
+            ['company_id' => $company, 'user_id' => $manager->id, 'role_code' => 'department_manager'],
+            ['company_id' => $otherCompany, 'user_id' => $foreignAdmin->id, 'role_code' => 'company_admin'],
+        ]);
+        foreach ([$manager, $staff, $foreignAdmin] as $actor) {
+            $this->actingAs($actor)->getJson($url.'/periods?month=2026-10')->assertForbidden();
+            $this->actingAs($actor)->postJson($url.'/periods/transition', [
+                'month' => '2026-10', 'revision' => 0, 'action' => 'submit',
+            ])->assertForbidden();
+        }
+        $this->actingAs($admin)->getJson('/api/v1/companies/'.$otherCompany.'/worktime/periods?month=2026-10')
+            ->assertForbidden();
+        $this->assertDatabaseCount('worktime_periods', 0);
+        $this->assertSame(0, DB::table('hr_audit_events')->whereIn('action', [
+            'worktime.period_submitted', 'worktime.period_approved', 'worktime.period_reopened',
+        ])->count());
+    }
+
+    public function test_admin_submitter_cannot_self_approve_and_reopen_validation_has_no_side_effects(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_period_approvals_enabled', true);
+        [$admin, , , $company, $employee, $url] = $this->fixture();
+        $reviewer = User::factory()->create();
+        DB::table('company_user_roles')->insert([
+            'company_id' => $company, 'user_id' => $reviewer->id, 'role_code' => 'company_admin',
+        ]);
+        $this->actingAs($admin)->putJson($url.'/timesheet/'.$employee, $this->entry())->assertOk();
+        $this->actingAs($admin)->postJson($url.'/periods/transition', [
+            'month' => '2026-10', 'revision' => 0, 'action' => 'submit',
+        ])->assertOk();
+        $this->actingAs($admin)->postJson($url.'/periods/transition', [
+            'month' => '2026-10', 'revision' => 1, 'action' => 'approve',
+        ])->assertForbidden();
+        $this->assertDatabaseHas('worktime_periods', ['company_id' => $company, 'status' => 'submitted', 'revision' => 1]);
+        $this->actingAs($reviewer)->postJson($url.'/periods/transition', [
+            'month' => '2026-10', 'revision' => 1, 'action' => 'approve',
+        ])->assertOk();
+        foreach ([null, '', 'abc', str_repeat('a', 501)] as $reason) {
+            $this->actingAs($reviewer)->postJson($url.'/periods/transition', [
+                'month' => '2026-10', 'revision' => 2, 'action' => 'reopen', 'reason' => $reason,
+            ])->assertUnprocessable();
+        }
+        $this->assertDatabaseHas('worktime_periods', ['company_id' => $company, 'status' => 'approved', 'revision' => 2]);
+        $this->assertSame(0, DB::table('hr_audit_events')->where('company_id', $company)
+            ->where('action', 'worktime.period_reopened')->count());
+        $this->assertSame(1, DB::table('hr_audit_events')->where('company_id', $company)
+            ->where('action', 'worktime.period_approved')->count());
+    }
 }
