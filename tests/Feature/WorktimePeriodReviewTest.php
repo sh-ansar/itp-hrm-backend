@@ -50,6 +50,7 @@ final class WorktimePeriodReviewTest extends TestCase
     public function test_period_review_is_fail_closed_by_default(): void
     {
         [$admin, , , , , $url] = $this->fixture();
+        $this->assertTrue(\Illuminate\Support\Facades\Schema::hasTable('worktime_periods'), 'Period migration must be present in isolated test DB');
         config()->set('hrm.worktime_writes_enabled', true);
         $this->actingAs($admin)->getJson($url.'/periods?month=2026-10')->assertNotFound();
         $this->actingAs($admin)->postJson($url.'/periods/transition', [
