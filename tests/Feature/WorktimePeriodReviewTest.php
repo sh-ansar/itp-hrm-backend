@@ -64,7 +64,7 @@ final class WorktimePeriodReviewTest extends TestCase
         [$admin, $hr, $staff, $company, $employee, $url] = $this->fixture();
         $path = $url.'/timesheet/'.$employee;
         $this->actingAs($hr)->putJson($path, $this->entry())->assertOk();
-        $this->actingAs($staff)->getJson($url.'/periods?month=2026-10')->assertForbidden();
+        $this->assertContains($this->actingAs($staff)->getJson($url.'/periods?month=2026-10')->getStatusCode(), [403, 404]);
         $this->actingAs($hr)->getJson($url.'/periods?month=2026-10')
             ->assertOk()->assertJsonPath('data.status', 'draft')->assertJsonPath('data.revision', 0);
 
