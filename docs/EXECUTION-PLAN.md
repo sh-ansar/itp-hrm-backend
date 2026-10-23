@@ -146,3 +146,12 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - Verification: final SQLite suite and PostgreSQL CI results are recorded on the PR.
 - Production untouched: no config activation, migration or employee-data changes. Paired Vue/real-browser verification remains required before activation. Notifications and approved-leave reversals remain separate unfinished work.
 - Maintainer contract: docs/LEAVE-MANAGER-REVIEW.md.
+
+
+## 23 October 2026 — period acceptance follow-up (local, not production)
+
+- Extended WorktimePeriodReviewTest with department-manager/employee/foreign-company denial, absence of period/audit mutations after denied requests, actual administrator self-approval denial, and rejected reopen reasons without side effects.
+- Verified under PHP 8.4.14 with project-local Composer dependencies and exif enabled per process: Worktime tests 13 passed, 149 assertions, SQLite in-memory. No backend runtime or migration changes in this follow-up.
+- Paired Vue acceptance against backend d6117d7 in a separate disposable browser-e2e.sqlite passed: real HR entry save, submit, different-admin approval, write denial, reopen reason validation, persisted revision/audit, stale-response month switching, controlled GET outage and delayed-read edit gating. All POST/PUT transitions used real Laravel HTTP; only a read outage was simulated.
+- PostgreSQL verification of these additional tests and remote CI are still required. Production databases, flags and SMTP unchanged.
+- Next: publish reviewed paired changes, run PostgreSQL CI, then complete approved-leave reversal and durable notification acceptance.
