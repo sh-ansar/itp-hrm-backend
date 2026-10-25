@@ -1,0 +1,5 @@
+{{ $messageText }}
+
+{{ $url }}
+
+ID: {{ $correlationId }}

@@ -25,6 +25,18 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    public function sendPasswordResetNotification($token): void
+    {
+        if (config('hrm.workflow_notifications_enabled', false)) {
+            if (in_array(config('queue.default'), ['sync', 'null'], true)) {
+                throw new \RuntimeException('HRM reset mail requires a persistent queue.');
+            }
+            $this->notify(new \App\Jobs\QueuedResetPassword($token));
+            return;
+        }
+        $this->notify(new \Illuminate\Auth\Notifications\ResetPassword($token));
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

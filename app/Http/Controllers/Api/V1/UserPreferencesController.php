@@ -31,11 +31,13 @@ final class UserPreferencesController extends Controller
             ? [
                 'notification_channels' => self::DEFAULT_CHANNELS,
                 'notification_rules' => self::DEFAULT_RULES,
+                'locale' => 'ru',
                 'revision' => 0,
             ]
             : [
                 'notification_channels' => $this->jsonObject($row->notification_channels, self::DEFAULT_CHANNELS),
                 'notification_rules' => $this->jsonObject($row->notification_rules, self::DEFAULT_RULES),
+                'locale' => $row->locale ?? 'ru',
                 'revision' => (int) $row->revision,
             ],
         ]);
@@ -52,6 +54,7 @@ final class UserPreferencesController extends Controller
             'notification_rules.schedule_changes' => ['required', 'boolean'],
             'notification_rules.learning_reserve' => ['required', 'boolean'],
             'notification_rules.document_deadlines' => ['required', 'boolean'],
+            'locale' => ['sometimes', 'in:ru,kk,en,ka'],
             'revision' => ['required', 'integer', 'min:0', 'max:2147483646'],
         ]);
 
@@ -70,6 +73,7 @@ final class UserPreferencesController extends Controller
 
                 DB::table('user_preferences')->insert([
                     'user_id' => $userId,
+                    'locale' => $validated['locale'] ?? 'ru',
                     'notification_channels' => json_encode($validated['notification_channels'], JSON_THROW_ON_ERROR),
                     'notification_rules' => json_encode($validated['notification_rules'], JSON_THROW_ON_ERROR),
                     'revision' => 1,
@@ -88,6 +92,7 @@ final class UserPreferencesController extends Controller
                 ->where('user_id', $userId)
                 ->where('revision', $expected)
                 ->update([
+                    'locale' => $validated['locale'] ?? $current->locale ?? 'ru',
                     'notification_channels' => json_encode($validated['notification_channels'], JSON_THROW_ON_ERROR),
                     'notification_rules' => json_encode($validated['notification_rules'], JSON_THROW_ON_ERROR),
                     'revision' => $expected + 1,

@@ -163,3 +163,11 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - Paired Vue acceptance against backend d6117d7 in a separate disposable browser-e2e.sqlite passed: real HR entry save, submit, different-admin approval, write denial, reopen reason validation, persisted revision/audit, stale-response month switching, controlled GET outage and delayed-read edit gating. All POST/PUT transitions used real Laravel HTTP; only a read outage was simulated.
 - PostgreSQL verification of these additional tests and remote CI are still required. Production databases, flags and SMTP unchanged.
 - Next: publish reviewed paired changes, run PostgreSQL CI, then complete approved-leave reversal and durable notification acceptance.
+
+
+## 25 October 2026 — Durable workflow notification slice
+
+- Transactional per-recipient outbox, unique source audit event, scoped recipients and send-time authorization/preference recheck; no SMTP inside HR transactions.
+- Bounded retry/worker leases, safe delivery journal/correlation IDs, four-language generic templates and owner-scoped read/read-mark API. Queued password resets are encrypted and reject superseded/expired tokens.
+- Full isolated PHP 8.4.26 SQLite run: 317 passed / 2337 assertions, one existing skipped integration gate before the new staged-recipient test; latest exact CI and SMTP capture remain release gates.
+- Feature remains OFF; no production queue, SMTP configuration or employee records changed. Deployment guide: docs/WORKFLOW-NOTIFICATIONS.md.

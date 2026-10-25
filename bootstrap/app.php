@@ -32,6 +32,23 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(function (\Throwable $error): void {
+            if (!config('hrm.workflow_notifications_enabled', false)) return;
+            if ($error instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                && $error->getStatusCode() < 500) return;
+            $company = request()->route('company');
+            $actor = request()->user();
+            if (!$actor || !is_string($company) || !\Illuminate\Support\Str::isUuid($company)) return;
+            try {
+                if (!\Illuminate\Support\Facades\DB::table('company_user_roles')->where('company_id', $company)
+                    ->where('user_id', $actor->id)->exists()) return;
+                if (!\Illuminate\Support\Facades\Cache::add('hrm-error:'.$company.':'.sha1(get_class($error)), true, 300)) return;
+                app(\App\Domain\Audit\HrAuditWriter::class)->record($actor, $company,
+                    \App\Domain\Audit\HrAuditAction::SystemErrorObserved);
+            } catch (\Throwable) {
+                // Keep normal Laravel error reporting; never recurse on a failed DB/outbox.
+            }
+        });
         $exceptions->shouldRenderJsonWhen(fn (Request $request, \Throwable $error) =>
             $request->is('api/*', 'auth/*') || $request->expectsJson());
     })->create();

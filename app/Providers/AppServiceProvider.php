@@ -34,13 +34,11 @@ class AppServiceProvider extends ServiceProvider
             $url = $base.'/reset-password?token='.rawurlencode($token)
                 .'&email='.rawurlencode($recipient->getEmailForPasswordReset());
 
-            return (new MailMessage())
-                ->subject('ITP HRM — установка или смена пароля')
-                ->greeting('Здравствуйте!')
-                ->line('Получен запрос на установку или смену пароля вашей учётной записи ITP HRM.')
-                ->action('Создать новый пароль', $url)
-                ->line('Ссылка действительна 60 минут и может быть использована только один раз.')
-                ->line('Если вы не отправляли запрос, просто проигнорируйте это письмо.');
+            $locale = config('hrm.workflow_notifications_enabled', false)
+                ? app(\App\Domain\Notifications\WorkflowOutbox::class)->preferences((int) $recipient->id)['locale'] : 'ru';
+            $copy = \App\Domain\Notifications\ResetMailCopy::for($locale);
+            return (new MailMessage())->subject($copy[0])->greeting($copy[1])
+                ->line($copy[2])->action($copy[3], $url)->line($copy[4])->line($copy[5]);
         });
     }
 }
