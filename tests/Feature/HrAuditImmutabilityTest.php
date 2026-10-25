@@ -120,7 +120,9 @@ class HrAuditImmutabilityTest extends TestCase
 
         if (DB::connection()->getDriverName() === 'pgsql') {
             $this->assertMutationRejected(static function (): void {
-                DB::statement('TRUNCATE TABLE hr_audit_events');
+                // Include dependent outbox rows so this reaches the append-only
+                // trigger instead of stopping at PostgreSQL's FK precheck.
+                DB::statement('TRUNCATE TABLE hr_audit_events CASCADE');
             });
         } else {
             $this->assertSame('sqlite', DB::connection()->getDriverName());
