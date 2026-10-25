@@ -55,6 +55,8 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
         Route::get('/me/access', CurrentAccessController::class);
+        Route::get('/me/notifications', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'index']);
+        Route::put('/me/notifications/{notification}/read', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'read'])->whereUuid('notification');
         Route::get('/me/preferences', [UserPreferencesController::class, 'show']);
         Route::put('/me/preferences', [UserPreferencesController::class, 'update']);
         Route::get('/companies', CompanyIndexController::class);

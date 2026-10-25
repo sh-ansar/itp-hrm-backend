@@ -18,7 +18,8 @@ final class HrAuditWriter
         ?int $subjectUserId = null,
         array $context = [],
     ): void {
-        DB::table('hr_audit_events')->insert([
+        DB::transaction(function () use ($actor, $companyId, $action, $subjectUserId, $context): void {
+        $id = DB::table('hr_audit_events')->insertGetId([
             'company_id' => $companyId,
             'actor_user_id' => (int) $actor->getAuthIdentifier(),
             'subject_user_id' => $subjectUserId,
@@ -26,5 +27,7 @@ final class HrAuditWriter
             'context' => json_encode($context, JSON_THROW_ON_ERROR),
             'created_at' => now(),
         ]);
+        app(\App\Domain\Notifications\WorkflowOutbox::class)->append((int) $id, $actor, $companyId, $action->value, $context);
+        });
     }
 }
