@@ -171,3 +171,13 @@ Follow `docs/MAINTAINER-START-HERE.md`; F124 is merged and browser-verified. Nex
 - Bounded retry/worker leases, safe delivery journal/correlation IDs, four-language generic templates and owner-scoped read/read-mark API. Queued password resets are encrypted and reject superseded/expired tokens.
 - Full isolated PHP 8.4.26 SQLite run: 317 passed / 2337 assertions, one existing skipped integration gate before the new staged-recipient test; latest exact CI and SMTP capture remain release gates.
 - Feature remains OFF; no production queue, SMTP configuration or employee records changed. Deployment guide: docs/WORKFLOW-NOTIFICATIONS.md.
+
+
+## 27 October 2026 — Approved customer demonstration catalogue
+
+- Added a separate CLI opt-in for the isolated HRM database, exact target token, active administrator scope in both companies and a recent verified-restore receipt with matching backup hash. Existing QA seeders and their production guards remain unchanged.
+- Bounded additive population to 80 active Mining / 20 active Solutions staff; company locks, conflict rejection and one outer transaction. Existing staff, documents and Georgia are preserved. Repeated execution does not write employees or audit events. Bulk creation refuses workflow mail activation.
+- Employee creation, hire and work schedule assignment use existing validated/audited domain controllers. Synthetic contract, education and training fixtures contain no national IDs, bank accounts, payroll or real documents.
+- Windows PHP 8.4.26 SQLite: 330 tests, 2417 assertions, one pre-existing PostgreSQL-only integration skip. Six new tests cover repeatability, pre-existing record preservation, collision rollback, role scope and command target/database refusal.
+- Restored PostgreSQL rehearsal: 76 Mining + 16 Solutions records added; active totals 80/20, 104 employee rows including 4 Georgia, all 4 existing documents preserved; repeat creates zero records/audits.
+- Pending: exact GitHub PostgreSQL CI, release and runtime receipt. Named corporate invitations, verified director identity, owner employee link, additional workflow acceptance and live mailbox confirmation are separate outstanding work; do not present this catalogue as full demonstration sign-off.
