@@ -29,6 +29,9 @@ final class EmployeeShowController extends Controller
             ->where('employees.id', $employee)
             ->firstOrFail();
 
+        // Canonical tenant name for the employee card.
+        $row->company_name = DB::table('companies')->where('id', $company)->value('name');
+
         $role = DB::table('company_user_roles')
             ->where('company_id', $company)
             ->where('user_id', $request->user()->getAuthIdentifier())
