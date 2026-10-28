@@ -290,6 +290,84 @@ final class WorktimeTimesheetWriteTest extends TestCase
         ]);
     }
 
+    public function test_existing_future_actuals_are_corrected_only_by_authorized_revision_checked_update(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$admin, $company, $employee, $url] = $this->fixture();
+
+        $entryId = (string) Str::uuid();
+        DB::table('worktime_entries')->insert([
+            'id' => $entryId, 'employee_id' => $employee,
+            'work_date' => '2026-10-16', 'planned_minutes' => 480,
+            'worked_minutes' => 480, 'absence_minutes' => 0,
+            'overtime_minutes' => 0, 'revision' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $employeeRole = User::factory()->create();
+        DB::table('company_user_roles')->insert([
+            'user_id' => $employeeRole->id, 'company_id' => $company,
+            'role_code' => 'employee',
+        ]);
+        $foreignAdmin = User::factory()->create();
+        $foreignCompany = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $foreignCompany, 'name' => 'Foreign synthetic company']);
+        DB::table('company_user_roles')->insert([
+            'user_id' => $foreignAdmin->id, 'company_id' => $foreignCompany,
+            'role_code' => 'company_admin',
+        ]);
+        $this->travelTo(now()->setDate(2026, 10, 15)->startOfDay());
+
+        $payload = ['month' => '2026-10', 'days' => [
+            $this->day('2026-10-16', 1, [
+                'worked_minutes' => null,
+                'absence_minutes' => null,
+                'overtime_minutes' => null,
+            ]),
+        ]];
+        $this->actingAs($employeeRole)->putJson($url, $payload)->assertForbidden();
+        $this->actingAs($foreignAdmin)->putJson($url, $payload)->assertForbidden();
+        $this->actingAs($admin)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-16', 7, [
+                'worked_minutes' => null,
+                'absence_minutes' => null,
+                'overtime_minutes' => null,
+            ])],
+        ])->assertConflict();
+        $this->assertDatabaseHas('worktime_entries', [
+            'id' => $entryId, 'worked_minutes' => 480,
+            'planned_minutes' => 480, 'revision' => 1,
+        ]);
+        $this->assertSame(0, DB::table('hr_audit_events')
+            ->where('company_id', $company)->where('action', 'worktime.entries_upserted')->count());
+
+        $this->actingAs($admin)->putJson($url, $payload)
+            ->assertOk()
+            ->assertJsonPath('meta.created_count', 0)
+            ->assertJsonPath('meta.updated_count', 1)
+            ->assertJsonPath('data.1.revision', 2)
+            ->assertJsonPath('data.1.planned_minutes', 480)
+            ->assertJsonPath('data.1.worked_minutes', null);
+        $this->assertDatabaseCount('worktime_entries', 1);
+        $this->assertDatabaseHas('worktime_entries', [
+            'id' => $entryId, 'work_date' => '2026-10-16',
+            'planned_minutes' => 480,
+            'worked_minutes' => null, 'absence_minutes' => null,
+            'overtime_minutes' => null, 'revision' => 2,
+        ]);
+        $this->assertSame(1, DB::table('hr_audit_events')
+            ->where('company_id', $company)->where('action', 'worktime.entries_upserted')->count());
+
+        $this->actingAs($admin)->putJson($url, $payload)->assertConflict();
+        $this->actingAs($admin)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-16', 2, ['worked_minutes' => 60])],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['days.0.date']);
+        $this->assertDatabaseHas('worktime_entries', ['id' => $entryId, 'revision' => 2, 'worked_minutes' => null]);
+        $this->assertSame(1, DB::table('hr_audit_events')
+            ->where('company_id', $company)->where('action', 'worktime.entries_upserted')->count());
+    }
+
     public function test_future_actual_attendance_is_rejected_without_creating_rows(): void
     {
         config()->set('hrm.worktime_writes_enabled', true);
