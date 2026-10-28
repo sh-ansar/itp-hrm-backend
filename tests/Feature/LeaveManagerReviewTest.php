@@ -214,6 +214,11 @@ final class LeaveManagerReviewTest extends TestCase
         $this->assertDatabaseHas('leave_requests', [
             'id' => $row['id'], 'assigned_manager_user_id' => $manager->id, 'manager_department_id' => $department,
         ]);
+        // Request owner sees the actual pinned reviewer, not internal HR notes.
+        $this->actingAs($staff)->getJson($base.'/me/workspace')
+            ->assertOk()->assertJsonPath('data.requests.0.assigned_manager_name', $manager->name);
+        $this->actingAs($hr)->getJson($base.'/me/workspace')
+            ->assertOk()->assertJsonCount(0, 'data.requests');
 
         $second = User::factory()->create();
         DB::table('company_user_roles')->insert(['company_id' => $company,

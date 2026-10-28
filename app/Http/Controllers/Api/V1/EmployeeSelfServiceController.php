@@ -41,6 +41,7 @@ final class EmployeeSelfServiceController extends Controller
                 $join->on('ev.leave_request_id', '=', 'r.id')->where('ev.company_id', $company);
             })
             ->join('leave_types as t', 't.id', '=', 'r.leave_type_id')
+            ->leftJoin('users as assigned_manager', 'assigned_manager.id', '=', 'r.assigned_manager_user_id')
             ->where('r.company_id', $company)->where('r.employee_id', $id)
             // HR planning notes are not employee-facing correspondence.
             ->where('r.created_by_user_id', $request->user()->id)
@@ -48,7 +49,8 @@ final class EmployeeSelfServiceController extends Controller
             ->select('r.id', 'r.leave_type_id', 't.name as leave_type_name', 't.category',
                 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'r.planned_started_on',
                 'r.planned_ended_on', 'r.planned_days', 'r.status', 'r.revision', 'r.note', 'r.decision_comment',
-                'r.manager_recommendation', 'r.manager_reviewed_at', 'r.manager_decision_comment')
+                'r.manager_recommendation', 'r.manager_reviewed_at', 'r.manager_decision_comment',
+                'assigned_manager.name as assigned_manager_name')
             ->paginate(25, ['*'], 'requests_page') : null;
         $leaves = $id ? DB::table('employee_leaves as l')->whereNull('l.cancelled_at')
             ->join('leave_types as t', 't.id', '=', 'l.leave_type_id')
