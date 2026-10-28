@@ -146,6 +146,39 @@ final class WorktimeTimesheetWriteTest extends TestCase
             ->count());
     }
 
+    public function test_future_actual_work_absence_and_overtime_are_denied_atomically(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 15)->startOfDay());
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, , $employee, $url] = $this->fixture();
+
+        foreach (['worked_minutes', 'absence_minutes', 'overtime_minutes'] as $field) {
+            $future = $this->day('2026-10-16', null, [
+                'worked_minutes' => 0,
+                'absence_minutes' => 0,
+                'overtime_minutes' => 0,
+                $field => 60,
+            ]);
+            $this->actingAs($user)->putJson($url, [
+                'month' => '2026-10',
+                'days' => [$this->day('2026-10-15'), $future],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['days.1.date']);
+            $this->assertDatabaseCount('worktime_entries', 0);
+        }
+
+        // A correction to clear previously recorded future values is allowed.
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-16', null, [
+                'worked_minutes' => null, 'absence_minutes' => null, 'overtime_minutes' => null,
+            ])],
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee, 'work_date' => '2026-10-16',
+            'worked_minutes' => null, 'absence_minutes' => null, 'overtime_minutes' => null,
+        ]);
+    }
+
     public function test_stale_revision_rejects_entire_batch(): void
     {
         config()->set('hrm.worktime_writes_enabled', true);

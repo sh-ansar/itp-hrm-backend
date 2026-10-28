@@ -51,6 +51,14 @@ final class TimesheetEntryWriter
                 ->keyBy('work_date');
 
             foreach ($days as $index => $day) {
+                if ($day['date'] > now()->toDateString()
+                    && ((int) ($day['worked_minutes'] ?? 0) > 0
+                        || (int) ($day['absence_minutes'] ?? 0) > 0
+                        || (int) ($day['overtime_minutes'] ?? 0) > 0)) {
+                    throw ValidationException::withMessages([
+                        "days.{$index}.date" => 'Future dates cannot contain actual timesheet values.',
+                    ]);
+                }
                 $current = $existing->get($day['date']);
                 $expected = $day['revision'];
                 if (($current === null && $expected !== null)
