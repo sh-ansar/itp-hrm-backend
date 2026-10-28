@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\StaffingPlanController;
 use App\Http\Controllers\Api\V1\StaffingHistoryController;
 use App\Http\Controllers\Api\V1\WorktimeReadController;
 use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
+use App\Http\Controllers\Api\V1\WorktimeBulkFillController;
 use App\Http\Controllers\Api\V1\WorktimePeriodController;
 use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
 use App\Http\Controllers\Api\V1\UserPreferencesController;
@@ -108,6 +109,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/worktime/periods', [WorktimePeriodController::class, 'show'])
             ->whereUuid('company');
         Route::post('/companies/{company}/worktime/periods/transition', [WorktimePeriodController::class, 'transition'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/worktime/timesheet/bulk-fill', [WorktimeBulkFillController::class, 'run'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/timesheet/{employee}', [WorktimeTimesheetWriteController::class, 'show'])
             ->whereUuid('company')->whereUuid('employee');
