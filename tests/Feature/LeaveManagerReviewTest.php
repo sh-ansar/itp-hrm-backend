@@ -204,4 +204,54 @@ final class LeaveManagerReviewTest extends TestCase
         $this->assertDatabaseHas('leave_requests', ['id' => $row['id'], 'manager_recommendation' => null, 'revision' => 2]);
         $this->assertDatabaseCount('employee_leaves', 0);
     }
+
+    public function test_explicit_manager_route_is_pinned_and_other_manager_in_same_department_cannot_approve(): void
+    {
+        $f = $this->fixture(); extract($f);
+        config()->set('hrm.leave_manager_route_snapshot_enabled', true);
+        $row = $this->submit($f);
+        $url = $base.'/leave-requests/'.$row['id'];
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $row['id'], 'assigned_manager_user_id' => $manager->id, 'manager_department_id' => $department,
+        ]);
+
+        $second = User::factory()->create();
+        DB::table('company_user_roles')->insert(['company_id' => $company,
+            'user_id' => $second->id, 'role_code' => 'department_manager']);
+        DB::table('department_access_scopes')->insert(['company_id' => $company,
+            'user_id' => $second->id, 'department_id' => $department]);
+
+        $this->actingAs($second)->getJson($base.'/leave-requests')
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->postJson($url.'/manager-decision', ['revision' => 2, 'decision' => 'approved'])
+            ->assertForbidden();
+
+        $this->actingAs($manager)->getJson($base.'/leave-requests')->assertJsonCount(1, 'data');
+        $this->postJson($url.'/manager-decision', ['revision' => 2, 'decision' => 'approved'])
+            ->assertOk()->assertJsonPath('data.manager_recommendation', 'approved');
+    }
+
+    public function test_manager_routing_fails_closed_for_missing_and_ambiguous_reviewer(): void
+    {
+        $f = $this->fixture(); extract($f);
+        config()->set('hrm.leave_manager_route_snapshot_enabled', true);
+        $draft = $this->actingAs($staff)->postJson($base.'/me/leave-requests', $payload)
+            ->assertCreated()->json('data');
+        $url = $base.'/me/leave-requests/'.$draft['id'].'/submit';
+
+        DB::table('department_access_scopes')->where('company_id', $company)->delete();
+        $this->postJson($url, ['revision' => 1])->assertUnprocessable();
+        DB::table('department_access_scopes')->insert(['company_id' => $company,
+            'user_id' => $manager->id, 'department_id' => $department]);
+
+        $second = User::factory()->create();
+        DB::table('company_user_roles')->insert(['company_id' => $company,
+            'user_id' => $second->id, 'role_code' => 'department_manager']);
+        DB::table('department_access_scopes')->insert(['company_id' => $company,
+            'user_id' => $second->id, 'department_id' => $department]);
+        $this->postJson($url, ['revision' => 1])->assertUnprocessable();
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $draft['id'], 'status' => 'draft', 'revision' => 1, 'assigned_manager_user_id' => null,
+        ]);
+    }
 }

@@ -35,10 +35,12 @@ final class LeaveRequestController extends Controller
             ->join('leave_types as lt', function ($join) use ($company): void {
                 $join->on('lt.id', '=', 'lr.leave_type_id')->where('lt.company_id', $company);
             })
+            ->leftJoin('users as assigned_manager', 'assigned_manager.id', '=', 'lr.assigned_manager_user_id')
             ->where('lr.company_id', $company)
             ->select('lr.id', 'lr.employee_id', 'lr.leave_type_id',
                 'lr.planned_started_on', 'lr.planned_ended_on', 'lr.planned_days',
                 'lr.manager_recommendation', 'lr.manager_reviewed_by_user_id', 'lr.manager_reviewed_at', 'lr.manager_decision_comment',
+                'lr.assigned_manager_user_id', 'lr.manager_department_id', 'assigned_manager.name as assigned_manager_name',
                 'lr.status', 'lr.revision', 'lr.note', 'lr.decision_comment', 'lr.published_leave_id',
                 'lr.reversed_at', 'lr.reversal_reason', 'lr.created_by_user_id', 'ev.status as evidence_status', 'ev.revision as evidence_revision', 'lt.name as leave_type_name',
                 'e.last_name', 'e.first_name', 'e.middle_name', 'lt.category');
@@ -47,6 +49,10 @@ final class LeaveRequestController extends Controller
             $visible = app(\App\Domain\Personnel\EmployeeVisibility::class)
                 ->visibleFor($request->user(), $company)->select('employees.id');
             $query->whereIn('lr.employee_id', $visible)->whereIn('lr.status', ['submitted', 'approved', 'rejected']);
+            if (config('hrm.leave_manager_route_snapshot_enabled', false)) {
+                // Do not leak a different manager's requests inside shared scopes.
+                $query->where('lr.assigned_manager_user_id', $request->user()->getAuthIdentifier());
+            }
         }
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
 

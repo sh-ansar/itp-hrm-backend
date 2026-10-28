@@ -130,6 +130,11 @@ final class LeavePlanWorkflow
             if (config('hrm.leave_manager_approval_enabled', false)) {
                 abort_unless($record->manager_recommendation === 'approved', 409,
                     'Department manager review is required before the final HR decision.');
+                if (config('hrm.leave_manager_route_snapshot_enabled', false)) {
+                    abort_unless($record->assigned_manager_user_id !== null
+                        && (int) $record->assigned_manager_user_id === (int) $record->manager_reviewed_by_user_id, 409,
+                        'Final approval requires a decision by the assigned manager.');
+                }
                 abort_if((int) $record->manager_reviewed_by_user_id === (int) $actor->getAuthIdentifier(), 403,
                     'The manager reviewer cannot also make the final HR decision.');
             }
@@ -210,6 +215,12 @@ final class LeavePlanWorkflow
             abort_unless(app(\App\Domain\Worktime\WorkforceAuthorization::class)
                 ->canReviewLeaveRequests($actor, $company), 403);
             $record = $this->loadLocked($company, $id);
+            if (config('hrm.leave_manager_route_snapshot_enabled', false)) {
+                abort_unless($record->assigned_manager_user_id !== null, 409,
+                    'Manager route is not assigned; a fresh submission is required.');
+                abort_unless((int) $record->assigned_manager_user_id === (int) $actor->getAuthIdentifier(), 403,
+                    'The request is assigned to another manager.');
+            }
             abort_unless(app(\App\Domain\Personnel\EmployeeVisibility::class)
                 ->visibleFor($actor, $company)->where('employees.id', $record->employee_id)->exists(), 404);
             $this->assertRevision($record, $expected);
@@ -255,6 +266,14 @@ final class LeavePlanWorkflow
             );
             $updates = ['status' => $to, 'revision' => $expected + 1,
                 'submitted_at' => now(), 'updated_at' => now()];
+            if ($to === 'submitted' && config('hrm.leave_manager_approval_enabled', false)
+                && config('hrm.leave_manager_route_snapshot_enabled', false)) {
+                // Pin the exact departmental reviewer at submission time; never
+                // silently redirect a pending request after a staffing change.
+                $route = app(LeaveManagerRouting::class)->resolve($company, $record->employee_id, $actor);
+                $updates['assigned_manager_user_id'] = $route['user_id'];
+                $updates['manager_department_id'] = $route['department_id'];
+            }
             $this->updateRevision($company, $id, $expected, $updates);
             $this->audit->record($actor, $company, HrAuditAction::LeaveRequestSubmitted, null, [
                 'request_id' => $id, 'revision' => $expected + 1,
@@ -335,6 +354,8 @@ final class LeavePlanWorkflow
             'manager_reviewed_by_user_id' => $row['manager_reviewed_by_user_id'] ?? null,
             'manager_reviewed_at' => $row['manager_reviewed_at'] ?? null,
             'manager_decision_comment' => $row['manager_decision_comment'] ?? null,
+            'assigned_manager_user_id' => $row['assigned_manager_user_id'] ?? null,
+            'manager_department_id' => $row['manager_department_id'] ?? null,
             'published_leave_id' => $row['published_leave_id'] ?? null,
         ];
     }
