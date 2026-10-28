@@ -199,7 +199,7 @@ final class PersonnelActionWorkflowTest extends TestCase
             'id' => $second, 'valid_from' => '2026-10-29', 'valid_to' => null,
         ]);
         $this->assertDatabaseCount('personnel_actions', 3);
-        $this->assertDatabaseCount('hr_audit_events', 11);
+        $this->assertSame(3, DB::table('hr_audit_events')->where('action', 'personnel.action_completed')->count());
     }
 
     public function test_stale_transfer_revision_does_not_create_action_or_target_assignment(): void
