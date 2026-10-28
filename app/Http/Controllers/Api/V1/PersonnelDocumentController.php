@@ -58,7 +58,8 @@ final class PersonnelDocumentController extends Controller
         }
 
         $id = (string) Str::uuid();
-        DB::transaction(function () use ($request, $audit, $company, $id, $data): void {
+        $normalizedTags = DocumentMetadata::tags($data['tags'] ?? []);
+        DB::transaction(function () use ($request, $audit, $company, $id, $data, $normalizedTags): void {
             DB::table('personnel_documents')->insert([
                 'id' => $id,
                 'company_id' => $company,
@@ -69,8 +70,10 @@ final class PersonnelDocumentController extends Controller
                 'title' => $data['title'],
                 'issued_on' => $data['issued_on'] ?? null,
                 'description' => trim((string) ($data['description'] ?? '')) ?: null,
-                'tags' => json_encode(DocumentMetadata::tags($data['tags'] ?? []), JSON_THROW_ON_ERROR),
+                'tags' => json_encode($normalizedTags, JSON_THROW_ON_ERROR),
                 'section_key' => $data['section_key'] ?? null,
+                'search_index' => DocumentMetadata::searchIndex($data['title'], $data['document_number'] ?? null, $data['description'] ?? null, $normalizedTags),
+                'tag_index' => DocumentMetadata::tagIndex($normalizedTags),
                 'status' => 'draft',
                 'created_by_user_id' => $request->user()->getAuthIdentifier(),
                 'revision' => 1,
@@ -136,20 +139,12 @@ final class PersonnelDocumentController extends Controller
         // No PDF bytes, employee private records or object-store keys are indexed.
         if (isset($filters['search']) && trim($filters['search']) !== '') {
             $term = mb_strtolower(trim($filters['search']));
-            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
-            $query->where(static function ($q) use ($pattern): void {
-                $q->whereLike('d.title', $pattern)
-                    ->orWhereLike('d.document_number', $pattern)
-                    ->orWhereLike('d.description', $pattern)
-                    ->orWhereRaw('LOWER(CAST(d.tags AS TEXT)) LIKE ?', [$pattern]);
-            });
+            // Search the server-normalized index; SQLite LOWER() does not fold Cyrillic.
+            $query->where('d.search_index', 'LIKE', '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%');
         }
-        if (isset($filters['tag'])) {
+        if (isset($filters['tag']) && trim($filters['tag']) !== '') {
             $tag = mb_strtolower(trim($filters['tag']));
-            $encoded = json_encode($tag, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-            $query->whereRaw('LOWER(CAST(d.tags AS TEXT)) LIKE ?', [
-                '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $encoded).'%',
-            ]);
+            $query->where('d.tag_index', 'LIKE', '%|'.str_replace(['%', '_'], ['\\%', '\\_'], $tag).'|%');
         }
 
         // Never expose storage paths, disk identifiers or private file hashes.
@@ -238,6 +233,18 @@ final class PersonnelDocumentController extends Controller
                 $values['tags'] = json_encode(DocumentMetadata::tags($input['tags']), JSON_THROW_ON_ERROR);
             }
             if (array_key_exists('section_key', $input)) $values['section_key'] = $input['section_key'];
+            // Regenerate indexes using the persisted values for unchanged fields.
+            $original = DB::table('personnel_documents')
+                ->where('id', $document)->where('company_id', $company)
+                ->first(['title','document_number','description','tags']);
+            $normalizedTags = DocumentMetadata::decode($values['tags'] ?? $original->tags);
+            $values['search_index'] = DocumentMetadata::searchIndex(
+                $values['title'] ?? $original->title,
+                $original->document_number,
+                $values['description'] ?? $original->description,
+                $normalizedTags,
+            );
+            $values['tag_index'] = DocumentMetadata::tagIndex($normalizedTags);
             $updated = DB::table('personnel_documents')
                 ->where('id', $document)->where('company_id', $company)
                 ->where('revision', $record->revision)
