@@ -145,4 +145,25 @@ final class WorktimeBulkFillTest extends TestCase
             'confirm' => true, 'preview_token' => $newToken])->assertStatus(200);
         $this->assertDatabaseCount('worktime_entries', 1);
     }
+
+    public function test_approved_period_stays_locked_when_approval_rollout_flag_is_off(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_bulk_fill_enabled', true);
+        config()->set('hrm.worktime_period_approvals_enabled', false);
+        [$user, $company, $employees, $url] = $this->fixture();
+        DB::table('worktime_periods')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $company,
+            'month' => '2026-10', 'status' => 'approved', 'revision' => 1,
+        ]);
+        $payload = [
+            'month' => '2026-10', 'employee_ids' => $employees,
+            'dates' => ['2026-10-15', '2026-10-16'], 'apply' => false,
+        ];
+        $preview = $this->actingAs($user)->postJson($url, $payload)->assertOk()
+            ->assertJsonPath('meta.period_locked', true)->json();
+        $this->postJson($url, [...$payload, 'apply' => true,
+            'confirm' => true, 'preview_token' => $preview['meta']['preview_token']])->assertStatus(409);
+        $this->assertDatabaseCount('worktime_entries', 0);
+    }
 }

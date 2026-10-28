@@ -34,8 +34,9 @@ final class BulkTimesheetFill
             DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
             $status = DB::table('worktime_periods')->where('company_id', $company)
                 ->where('month', $month)->value('status');
-            $locked = (bool) config('hrm.worktime_period_approvals_enabled', false)
-                && in_array($status, ['submitted', 'approved'], true);
+            // A submitted/approved period stays immutable even when rollout
+            // toggles are later switched OFF. Never downgrade recorded approval.
+            $locked = in_array($status, ['submitted', 'approved'], true);
             abort_unless(!($apply && $locked), 409, 'This timesheet period is locked.');
 
             $owned = DB::table('employees')->where('company_id', $company)
