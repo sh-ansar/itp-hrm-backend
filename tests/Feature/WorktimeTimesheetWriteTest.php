@@ -198,4 +198,54 @@ final class WorktimeTimesheetWriteTest extends TestCase
 
         $this->assertDatabaseCount('worktime_entries', 0);
     }
+    public function test_department_manager_can_write_only_the_employee_in_their_explicit_scope(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$manager, $company, $employee, $url] = $this->fixture('department_manager');
+        $department = (string) Str::uuid();
+        $otherDepartment = (string) Str::uuid();
+        $position = (string) Str::uuid();
+        $otherEmployee = (string) Str::uuid();
+        DB::table('departments')->insert([
+            ['id' => $department, 'company_id' => $company, 'name' => 'Scoped department'],
+            ['id' => $otherDepartment, 'company_id' => $company, 'name' => 'Other department'],
+        ]);
+        DB::table('positions')->insert(['id' => $position, 'company_id' => $company, 'name' => 'Worker']);
+        DB::table('employees')->insert([
+            'id' => $otherEmployee, 'company_id' => $company, 'personnel_number' => 'OTHER',
+            'last_name' => 'Other', 'first_name' => 'Employee', 'revision' => 1,
+        ]);
+        foreach ([$employee => $department, $otherEmployee => $otherDepartment] as $id => $dep) {
+            DB::table('employee_assignments')->insert([
+                'id' => (string) Str::uuid(), 'employee_id' => $id,
+                'department_id' => $dep, 'position_id' => $position,
+                'valid_from' => '2026-01-01', 'revision' => 1,
+            ]);
+        }
+        DB::table('department_access_scopes')->insert([
+            'company_id' => $company, 'user_id' => $manager->id, 'department_id' => $department,
+        ]);
+        $otherUrl = "/api/v1/companies/{$company}/worktime/timesheet/{$otherEmployee}";
+        $payload = ['month' => '2026-10', 'days' => [$this->day()]];
+
+        $this->actingAs($manager)->putJson($url, $payload)->assertForbidden();
+        config()->set('hrm.worktime_manager_entry_enabled', true);
+        $this->actingAs($manager)->getJson($url.'?month=2026-10')->assertOk();
+        $this->actingAs($manager)->putJson($url, $payload)
+            ->assertOk()->assertJsonPath('meta.created_count', 1);
+        $this->actingAs($manager)->getJson($otherUrl.'?month=2026-10')->assertForbidden();
+        $this->actingAs($manager)->putJson($otherUrl, $payload)->assertForbidden();
+        $this->assertDatabaseMissing('worktime_entries', [
+            'employee_id' => $otherEmployee, 'work_date' => '2026-10-15',
+        ]);
+
+        DB::table('department_access_scopes')->where('company_id', $company)->delete();
+        $this->actingAs($manager)->putJson($url, [
+            'month' => '2026-10', 'days' => [$this->day('2026-10-15', 1)],
+        ])->assertForbidden();
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee, 'work_date' => '2026-10-15', 'revision' => 1,
+        ]);
+    }
+
 }

@@ -12,8 +12,8 @@ final class UpsertTimesheetEntriesRequest extends FormRequest
     {
         abort_unless((bool) config('hrm.worktime_writes_enabled', false), 404);
 
-        return app(WorkforceAuthorization::class)->canEditTimesheet(
-            $this->user(), (string) $this->route('company'),
+        return app(WorkforceAuthorization::class)->canEditEmployeeTimesheet(
+            $this->user(), (string) $this->route('company'), (string) $this->route('employee'),
         );
     }
 

@@ -125,6 +125,19 @@ final class WorktimeReadTest extends TestCase
             ->assertJsonPath('meta.summary.planned_minutes', 960);
 
         $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/timesheet?month=2026-10&day=2026-10-02")
+            ->assertOk()
+            ->assertJsonPath('meta.day_filter_supported', true)
+            ->assertJsonPath('meta.day', '2026-10-02')
+            ->assertJsonPath('data.0.days_recorded', 1)
+            ->assertJsonPath('data.0.worked_minutes', 420)
+            ->assertJsonPath('data.0.absence_minutes', 60)
+            ->assertJsonPath('meta.summary.planned_minutes', 480);
+        $this->actingAs($user)
+            ->getJson("/api/v1/companies/{$company}/worktime/timesheet?month=2026-10&day=2026-09-29")
+            ->assertStatus(422);
+
+        $this->actingAs($user)
             ->getJson("/api/v1/companies/{$company}/worktime/employees/{$employee}/monthly-summary?month=2026-10")
             ->assertOk()
             ->assertJsonPath('data.summary.days_recorded', 2)

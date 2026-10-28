@@ -94,10 +94,17 @@ final class WorktimeReadController extends Controller
     ): JsonResponse {
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
+            'day' => ['sometimes', 'date_format:Y-m-d'],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
         [$from, $to] = $this->monthBounds($validated['month']);
+        if (isset($validated['day'])) {
+            abort_unless(str_starts_with($validated['day'], $validated['month'].'-'), 422,
+                'Day must belong to the selected month.');
+            $from = CarbonImmutable::parse($validated['day']);
+            $to = $from;
+        }
         $visible = $visibility->visibleFor($request->user(), $company);
 
         $query = DB::query()
@@ -166,6 +173,8 @@ final class WorktimeReadController extends Controller
             'data' => $page->items(),
             'meta' => [
                 'month' => $validated['month'],
+                'day' => $validated['day'] ?? null,
+                'day_filter_supported' => true,
                 'summary' => $summary,
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
                 'worktime_bulk_fill_enabled' => (bool) config('hrm.worktime_bulk_fill_enabled', false)
