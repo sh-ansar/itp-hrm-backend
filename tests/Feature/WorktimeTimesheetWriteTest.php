@@ -14,6 +14,7 @@ final class WorktimeTimesheetWriteTest extends TestCase
 
     private function fixture(string $role = 'company_admin'): array
     {
+        $this->travelTo(now()->setDate(2026, 10, 28));
         $user = User::factory()->create();
         $company = (string) Str::uuid();
         $employee = (string) Str::uuid();
@@ -196,6 +197,39 @@ final class WorktimeTimesheetWriteTest extends TestCase
             'days' => [$this->day('2026-10-15', null, ['absence_minutes' => 600, 'worked_minutes' => 0])],
         ])->assertUnprocessable();
 
+        $this->assertDatabaseCount('worktime_entries', 0);
+    }
+
+    public function test_future_actual_attendance_is_rejected_without_creating_rows(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, $company, , $url] = $this->fixture();
+        DB::table('production_calendar_days')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $company,
+            'work_date' => '2026-10-30', 'day_type' => 'workday',
+            'planned_minutes' => 480, 'revision' => 1,
+        ]);
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-30')],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['days.0.date']);
+        $this->assertDatabaseCount('worktime_entries', 0);
+    }
+
+    public function test_approved_period_remains_readonly_after_approval_flag_is_disabled(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_period_approvals_enabled', false);
+        [$user, $company, , $url] = $this->fixture();
+        DB::table('worktime_periods')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $company,
+            'month' => '2026-10', 'status' => 'approved', 'revision' => 1,
+        ]);
+        $this->actingAs($user)->getJson($url.'?month=2026-10')
+            ->assertOk()->assertJsonPath('meta.can_edit', false);
+        $this->putJson($url, [
+            'month' => '2026-10', 'days' => [$this->day()],
+        ])->assertStatus(409);
         $this->assertDatabaseCount('worktime_entries', 0);
     }
 }
