@@ -28,6 +28,8 @@ return [
 
     // Opt-in staged review; legacy approvals remain unchanged until rollout.
     'leave_manager_approval_enabled' => (bool) env('HRM_LEAVE_MANAGER_APPROVAL_ENABLED', false),
+    // Opt-in after every department has exactly one authorized reviewer.
+    'leave_manager_route_snapshot_enabled' => (bool) env('HRM_LEAVE_MANAGER_ROUTE_SNAPSHOT_ENABLED', false),
 
     // Separate opt-in for explicit employee-year grant/adjust/carry operations.
     'leave_balance_writes_enabled' => (bool) env('HRM_LEAVE_BALANCE_WRITES_ENABLED', false),
