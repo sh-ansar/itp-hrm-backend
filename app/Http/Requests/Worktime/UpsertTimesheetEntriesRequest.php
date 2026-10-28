@@ -53,6 +53,11 @@ final class UpsertTimesheetEntriesRequest extends FormRequest
 
                 $worked = (int) ($day['worked_minutes'] ?? 0);
                 $absence = (int) ($day['absence_minutes'] ?? 0);
+                $overtime = (int) ($day['overtime_minutes'] ?? 0);
+                if ($date > now()->toDateString() && ($worked > 0 || $absence > 0 || $overtime > 0)) {
+                    $validator->errors()->add("days.{$index}.date",
+                        'Future dates may contain a planned schedule, but not actual attendance, absences, or overtime.');
+                }
                 if ($worked + $absence > 1440) {
                     $validator->errors()->add("days.{$index}.worked_minutes", 'Worked and absence minutes cannot exceed one day.');
                 }
