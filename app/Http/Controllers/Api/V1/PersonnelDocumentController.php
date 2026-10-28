@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
+use App\Domain\Personnel\DocumentMetadata;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ final class PersonnelDocumentController extends Controller
         abort_unless(in_array($role, ['company_admin', 'hr_specialist'], true)
             && (bool) config('hrm.document_writes_enabled', false), 404);
 
-        $allowed = ['employee_id', 'personnel_action_id', 'document_type', 'document_number', 'title', 'issued_on'];
+        $allowed = ['employee_id', 'personnel_action_id', 'document_type', 'document_number', 'title', 'issued_on', 'description', 'tags', 'section_key'];
         if (array_diff(array_keys($request->all()), $allowed) !== []) {
             throw ValidationException::withMessages(['request' => 'Unexpected document fields.']);
         }
@@ -35,6 +36,10 @@ final class PersonnelDocumentController extends Controller
             'document_number' => ['nullable', 'string', 'max:128'],
             'title' => ['required', 'string', 'max:255'],
             'issued_on' => ['nullable', 'date_format:Y-m-d'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'tags' => ['sometimes', 'array', 'max:12'],
+            'tags.*' => ['required', 'string', 'max:40'],
+            'section_key' => ['nullable', Rule::in(DocumentMetadata::SECTIONS)],
         ]);
 
         $employeeExists = DB::table('employees')
@@ -63,6 +68,9 @@ final class PersonnelDocumentController extends Controller
                 'document_number' => $data['document_number'] ?? null,
                 'title' => $data['title'],
                 'issued_on' => $data['issued_on'] ?? null,
+                'description' => trim((string) ($data['description'] ?? '')) ?: null,
+                'tags' => json_encode(DocumentMetadata::tags($data['tags'] ?? []), JSON_THROW_ON_ERROR),
+                'section_key' => $data['section_key'] ?? null,
                 'status' => 'draft',
                 'created_by_user_id' => $request->user()->getAuthIdentifier(),
                 'revision' => 1,
@@ -82,6 +90,9 @@ final class PersonnelDocumentController extends Controller
             'document_type' => $data['document_type'],
             'status' => 'draft',
             'revision' => 1,
+            'description' => trim((string) ($data['description'] ?? '')) ?: null,
+            'tags' => DocumentMetadata::tags($data['tags'] ?? []),
+            'section_key' => $data['section_key'] ?? null,
         ]], 201);
     }
 
@@ -99,6 +110,9 @@ final class PersonnelDocumentController extends Controller
             'employee_id' => ['sometimes', 'uuid'],
             'document_type' => ['sometimes', Rule::in(['order', 'contract', 'basis', 'other'])],
             'status' => ['sometimes', Rule::in(['draft', 'submitted', 'approved', 'rejected'])],
+            'section_key' => ['sometimes', Rule::in(DocumentMetadata::SECTIONS)],
+            'search' => ['sometimes', 'string', 'max:120'],
+            'tag' => ['sometimes', 'string', 'max:40'],
         ]);
 
         $query = DB::table('personnel_documents as d')
@@ -115,11 +129,34 @@ final class PersonnelDocumentController extends Controller
         if (isset($filters['status'])) {
             $query->where('d.status', $filters['status']);
         }
+        if (isset($filters['section_key'])) {
+            $query->where('d.section_key', $filters['section_key']);
+        }
+        // Metadata search is company-scoped and only available to HR roles.
+        // No PDF bytes, employee private records or object-store keys are indexed.
+        if (isset($filters['search']) && trim($filters['search']) !== '') {
+            $term = mb_strtolower(trim($filters['search']));
+            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+            $query->where(static function ($q) use ($pattern): void {
+                $q->whereLike('d.title', $pattern)
+                    ->orWhereLike('d.document_number', $pattern)
+                    ->orWhereLike('d.description', $pattern)
+                    ->orWhereRaw('LOWER(CAST(d.tags AS TEXT)) LIKE ?', [$pattern]);
+            });
+        }
+        if (isset($filters['tag'])) {
+            $tag = mb_strtolower(trim($filters['tag']));
+            $encoded = json_encode($tag, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            $query->whereRaw('LOWER(CAST(d.tags AS TEXT)) LIKE ?', [
+                '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $encoded).'%',
+            ]);
+        }
 
         // Never expose storage paths, disk identifiers or private file hashes.
         $page = $query->select(
             'd.id', 'd.employee_id', 'd.personnel_action_id',
             'd.document_type', 'd.document_number', 'd.title',
+            'd.description', 'd.tags', 'd.section_key',
             'd.issued_on', 'd.status', 'd.revision', 'd.created_at',
             'd.created_by_user_id', 'd.submitted_by_user_id', 'd.submitted_at',
             'd.reviewed_by_user_id', 'd.reviewed_at', 'd.review_note',
@@ -132,6 +169,7 @@ final class PersonnelDocumentController extends Controller
         // Boolean attachment availability only; never serialize disk/path/hash metadata.
         $page->getCollection()->transform(static function (object $row): object {
             $row->has_file = (bool) $row->has_file;
+            $row->tags = DocumentMetadata::decode($row->tags);
             $row->employee_visible = filter_var($row->employee_visible, FILTER_VALIDATE_BOOLEAN);
             return $row;
         });
@@ -155,6 +193,68 @@ final class PersonnelDocumentController extends Controller
                     && (bool) config('hrm.order_approvals_enabled', false),
             ],
         ]);
+    }
+
+    /** Update descriptive metadata only; never grants PDF access or alters issuance. */
+    public function metadata(Request $request, string $company, string $document, HrAuditWriter $audit): JsonResponse
+    {
+        $role = DB::table('company_user_roles')
+            ->where('company_id', $company)
+            ->where('user_id', $request->user()->getAuthIdentifier())->value('role_code');
+        abort_unless(in_array($role, ['company_admin', 'hr_specialist'], true)
+            && (bool) config('hrm.document_writes_enabled', false), 404);
+
+        $allowed = ['revision', 'title', 'description', 'tags', 'section_key'];
+        if (array_diff(array_keys($request->all()), $allowed) !== []) {
+            throw ValidationException::withMessages(['request' => 'Unexpected document metadata fields.']);
+        }
+        $input = $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'tags' => ['sometimes', 'array', 'max:12'],
+            'tags.*' => ['required', 'string', 'max:40'],
+            'section_key' => ['sometimes', 'nullable', Rule::in(DocumentMetadata::SECTIONS)],
+        ]);
+        if (array_diff(array_keys($input), ['revision']) === []) {
+            throw ValidationException::withMessages(['request' => 'At least one metadata field is required.']);
+        }
+        return DB::transaction(function () use ($request, $company, $document, $input, $audit): JsonResponse {
+            DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
+            $record = DB::table('personnel_documents as d')
+                ->join('employees as e', 'e.id', '=', 'd.employee_id')
+                ->where('d.id', $document)->where('d.company_id', $company)
+                ->where('e.company_id', $company)
+                ->lockForUpdate()->first(['d.id', 'd.employee_id', 'd.revision']);
+            abort_unless($record, 404);
+            abort_unless((int) $record->revision === (int) $input['revision'], 409,
+                'Document metadata changed; reload before saving.');
+            $values = [];
+            if (array_key_exists('title', $input)) $values['title'] = trim($input['title']);
+            if (array_key_exists('description', $input)) {
+                $values['description'] = trim((string) ($input['description'] ?? '')) ?: null;
+            }
+            if (array_key_exists('tags', $input)) {
+                $values['tags'] = json_encode(DocumentMetadata::tags($input['tags']), JSON_THROW_ON_ERROR);
+            }
+            if (array_key_exists('section_key', $input)) $values['section_key'] = $input['section_key'];
+            $updated = DB::table('personnel_documents')
+                ->where('id', $document)->where('company_id', $company)
+                ->where('revision', $record->revision)
+                ->update($values + ['revision' => (int) $record->revision + 1, 'updated_at' => now()]);
+            abort_unless($updated === 1, 409);
+            $audit->record($request->user(), $company, HrAuditAction::PersonnelDocumentMetadataUpdated, null, [
+                'document_id' => $document, 'employee_id' => $record->employee_id,
+                'changed_fields' => array_keys($values), 'revision' => (int) $record->revision + 1,
+            ]);
+            $fresh = DB::table('personnel_documents')->where('company_id', $company)
+                ->where('id', $document)->first(['id', 'title', 'description', 'tags', 'section_key', 'revision']);
+            return response()->json(['data' => [
+                'id' => $fresh->id, 'title' => $fresh->title,
+                'description' => $fresh->description, 'tags' => DocumentMetadata::decode($fresh->tags),
+                'section_key' => $fresh->section_key, 'revision' => (int) $fresh->revision,
+            ]])->header('Cache-Control', 'private, no-store');
+        }, 3);
     }
 
     /**
