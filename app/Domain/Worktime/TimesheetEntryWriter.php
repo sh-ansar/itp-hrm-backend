@@ -18,12 +18,11 @@ final class TimesheetEntryWriter
         return DB::transaction(function () use ($actor, $companyId, $employeeId, $month, $days): array {
             DB::table('companies')->where('id', $companyId)->lockForUpdate()->firstOrFail();
 
-            if (config('hrm.worktime_period_approvals_enabled', false)) {
-                $status = DB::table('worktime_periods')->where('company_id', $companyId)
-                    ->where('month', $month)->value('status');
-                abort_unless($status === null || $status === 'draft', 409,
-                    'The timesheet period is submitted or approved and cannot be edited.');
-            }
+            // Recorded approvals are immutable, even if the rollout flag is disabled later.
+            $status = DB::table('worktime_periods')->where('company_id', $companyId)
+                ->where('month', $month)->value('status');
+            abort_unless($status === null || $status === 'draft', 409,
+                'The timesheet period is submitted or approved and cannot be edited.');
 
             $employeeExists = DB::table('employees')
                 ->where('id', $employeeId)
@@ -32,6 +31,15 @@ final class TimesheetEntryWriter
             abort_unless($employeeExists, 404);
 
             $dates = array_column($days, 'date');
+            foreach ($days as $index => $day) {
+                // Planning is done in the production calendar. A timesheet
+                // records actual attendance and therefore cannot be future-dated.
+                if ($day['date'] > now()->toDateString()) {
+                    throw ValidationException::withMessages([
+                        "days.{$index}.date" => 'Future actual attendance cannot be recorded.',
+                    ]);
+                }
+            }
             $calendar = DB::table('production_calendar_days')
                 ->where('company_id', $companyId)
                 ->whereIn('work_date', $dates)
