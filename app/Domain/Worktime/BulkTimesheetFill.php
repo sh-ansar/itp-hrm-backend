@@ -62,6 +62,21 @@ final class BulkTimesheetFill
                     $query->whereNull('valid_to')->orWhere('valid_to', '>=', $from);
                 })->get(['employee_id', 'valid_from', 'valid_to'])->groupBy('employee_id');
 
+            // A company calendar cannot tell which individual dates belong to a
+            // rotating shift, individualized or summarized schedule. Those dates
+            // must never be auto-posted as actual attendance until a verified
+            // per-employee daily plan exists. Overlapping assignments also fail closed.
+            $schedules = DB::table('employee_work_schedules as ews')
+                ->join('work_schedules as ws', 'ws.id', '=', 'ews.work_schedule_id')
+                ->where('ws.company_id', $company)
+                ->whereIn('ews.employee_id', $employeeIds)
+                ->where('ews.valid_from', '<=', $to)
+                ->where(function ($query) use ($from): void {
+                    $query->whereNull('ews.valid_to')->orWhere('ews.valid_to', '>=', $from);
+                })
+                ->get(['ews.employee_id', 'ews.valid_from', 'ews.valid_to', 'ws.schedule_type'])
+                ->groupBy('employee_id');
+
             $leaves = DB::table('employee_leaves')->whereIn('employee_id', $employeeIds)
                 ->whereNull('cancelled_at')->where('planned_started_on', '<=', $to)
                 ->where('planned_ended_on', '>=', $from)
@@ -85,6 +100,7 @@ final class BulkTimesheetFill
                 'approved_leave' => 0,
                 'recorded_absence' => 0,
                 'nonworking_date' => 0,
+                'unknown_shift_schedule' => 0,
                 'future_date' => 0,
             ];
             $rows = [];
@@ -107,6 +123,19 @@ final class BulkTimesheetFill
                     );
                     if (!$active) {
                         $counts['outside_employment']++;
+                        continue;
+                    }
+                    $daySchedules = ($schedules->get($employeeId) ?? collect())->filter(
+                        static fn (object $row): bool => $row->valid_from <= $date
+                            && ($row->valid_to === null || $row->valid_to >= $date)
+                    );
+                    // No explicit schedule keeps existing standard-calendar
+                    // behavior. With one explicit standard schedule it remains
+                    // eligible. Unknown rotations or contradictory overlaps do not.
+                    if ($daySchedules->count() > 1
+                        || ($daySchedules->count() === 1
+                            && $daySchedules->first()->schedule_type !== 'standard')) {
+                        $counts['unknown_shift_schedule']++;
                         continue;
                     }
                     $leave = ($leaves->get($employeeId) ?? collect())->contains(
