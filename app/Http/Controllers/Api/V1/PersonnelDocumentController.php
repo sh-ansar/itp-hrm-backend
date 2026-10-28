@@ -241,7 +241,7 @@ final class PersonnelDocumentController extends Controller
             $values['search_index'] = DocumentMetadata::searchIndex(
                 $values['title'] ?? $original->title,
                 $original->document_number,
-                $values['description'] ?? $original->description,
+                array_key_exists('description', $values) ? $values['description'] : $original->description,
                 $normalizedTags,
             );
             $values['tag_index'] = DocumentMetadata::tagIndex($normalizedTags);
