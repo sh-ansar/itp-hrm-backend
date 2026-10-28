@@ -139,6 +139,69 @@ final class PersonnelActionWorkflowTest extends TestCase
         $this->assertDatabaseCount('hr_audit_events', 3);
     }
 
+    public function test_archive_is_derived_after_last_working_day_and_rehire_keeps_history(): void
+    {
+        $this->travelTo(now()->setDate(2026, 10, 28)->startOfDay());
+        extract($this->fixture());
+        $base = "/api/v1/companies/{$company}";
+        $employeeUrl = $base."/employees";
+        $actionsUrl = $base."/employees/{$employee}/personnel-actions";
+
+        $first = $this->actingAs($user)->postJson($actionsUrl.'/hire', [
+            'department_id' => $departmentA,
+            'position_id' => $positionA,
+            'effective_on' => '2026-01-10',
+            'basis_reference' => 'P1-HIRE-001',
+        ])->assertCreated()->json('data.target_assignment_id');
+
+        $this->actingAs($user)->postJson($actionsUrl.'/terminate', [
+            'source_assignment_id' => $first,
+            'source_assignment_revision' => 1,
+            'effective_on' => '2026-10-28',
+            'basis_reference' => 'P1-TERM-002',
+        ])->assertCreated();
+
+        // The termination date is the inclusive last day of employment.
+        $this->getJson($employeeUrl.'?status=active')->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.employment_status', 'active');
+        $this->getJson($employeeUrl.'?status=archived')->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        $this->travelTo(now()->setDate(2026, 10, 29)->startOfDay());
+        $this->getJson($employeeUrl.'?status=active')->assertOk()
+            ->assertJsonPath('meta.total', 0);
+        $this->getJson($employeeUrl.'?status=archived')->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $employee)
+            ->assertJsonPath('data.0.employment_status', 'archived');
+
+        // Rehire creates a new appointment. The old termination and dates remain immutable.
+        $second = $this->actingAs($user)->postJson($actionsUrl.'/hire', [
+            'department_id' => $departmentB,
+            'position_id' => $positionB,
+            'effective_on' => '2026-10-29',
+            'basis_reference' => 'P1-REHIRE-003',
+        ])->assertCreated()->json('data.target_assignment_id');
+
+        $this->getJson($employeeUrl.'?status=active')->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.current_position_name', 'Lead');
+        $this->getJson($employeeUrl.'?status=archived')->assertOk()
+            ->assertJsonPath('meta.total', 0);
+        $this->getJson($base.'/personnel-actions')->assertOk()
+            ->assertJsonPath('meta.total', 3);
+        $this->assertNotSame($first, $second);
+        $this->assertDatabaseHas('employee_assignments', [
+            'id' => $first, 'valid_to' => '2026-10-28',
+        ]);
+        $this->assertDatabaseHas('employee_assignments', [
+            'id' => $second, 'valid_from' => '2026-10-29', 'valid_to' => null,
+        ]);
+        $this->assertDatabaseCount('personnel_actions', 3);
+        $this->assertDatabaseCount('hr_audit_events', 11);
+    }
+
     public function test_stale_transfer_revision_does_not_create_action_or_target_assignment(): void
     {
         extract($this->fixture());
