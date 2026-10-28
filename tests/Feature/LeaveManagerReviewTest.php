@@ -262,6 +262,127 @@ final class LeaveManagerReviewTest extends TestCase
             ->assertOk()->assertJsonPath('data.manager_recommendation', 'approved');
     }
 
+    public function test_four_role_approval_keeps_original_reviewer_after_head_rotation(): void
+    {
+        $f = $this->fixture();
+        extract($f);
+        config()->set([
+            'hrm.leave_manager_route_snapshot_enabled' => true,
+            'hrm.personnel_writes_enabled' => true,
+        ]);
+
+        $headOne = (string) Str::uuid();
+        $headTwo = (string) Str::uuid();
+        foreach ([$headOne, $headTwo] as $index => $head) {
+            DB::table('employees')->insert([
+                'id' => $head, 'company_id' => $company,
+                'personnel_number' => 'HEAD-'.$index,
+                'first_name' => 'Synthetic', 'last_name' => 'Department Head',
+            ]);
+            DB::table('employee_assignments')->insert([
+                'id' => (string) Str::uuid(), 'employee_id' => $head,
+                'department_id' => $department, 'position_id' => DB::table('positions')->where('company_id', $company)->value('id'),
+                'valid_from' => '2026-01-01',
+            ]);
+        }
+
+        $nextManager = User::factory()->create();
+        DB::table('company_user_roles')->insert([
+            'company_id' => $company, 'user_id' => $nextManager->id, 'role_code' => 'department_manager',
+        ]);
+        DB::table('department_access_scopes')->insert([
+            'company_id' => $company, 'user_id' => $nextManager->id, 'department_id' => $department,
+        ]);
+        foreach ([[$headOne, $manager], [$headTwo, $nextManager]] as [$head, $account]) {
+            DB::table('employee_user_links')->insert([
+                'company_id' => $company, 'employee_id' => $head,
+                'user_id' => $account->id, 'revision' => 1,
+            ]);
+        }
+        DB::table('departments')->where('id', $department)
+            ->update(['manager_employee_id' => $headOne]);
+
+        $this->actingAs($admin)->postJson($base.'/leave-balances/periods', [
+            'employee_id' => $employee, 'leave_type_id' => $type,
+            'year' => 2026, 'granted_days' => 20,
+            'reason' => 'Isolated P0 acceptance baseline',
+        ])->assertCreated();
+
+        $first = $this->submit($f);
+        $oldUrl = $base.'/leave-requests/'.$first['id'];
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $first['id'], 'assigned_manager_user_id' => $manager->id,
+            'manager_department_id' => $department, 'revision' => 2,
+        ]);
+
+        // The same authorized administrator changes the explicit head using
+        // the public API with revision checking; no direct role escalation.
+        $this->actingAs($admin)->putJson($base.'/departments/'.$department, [
+            'name' => $department, 'parent_id' => null,
+            'manager_employee_id' => $headTwo, 'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+        $this->assertDatabaseHas('departments', [
+            'id' => $department, 'manager_employee_id' => $headTwo, 'revision' => 2,
+        ]);
+
+        $second = $this->actingAs($staff)->postJson($base.'/me/leave-requests', array_merge($payload, [
+            'planned_started_on' => '2026-11-10',
+            'planned_ended_on' => '2026-11-12',
+        ]))->assertCreated()->json('data');
+        $this->postJson($base.'/me/leave-requests/'.$second['id'].'/submit', ['revision' => 1])
+            ->assertOk()->assertJsonPath('data.status', 'submitted');
+        $newUrl = $base.'/leave-requests/'.$second['id'];
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $second['id'], 'assigned_manager_user_id' => $nextManager->id,
+            'manager_department_id' => $department, 'revision' => 2,
+        ]);
+
+        $this->actingAs($manager)->getJson($base.'/leave-requests')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $first['id']);
+        $this->actingAs($nextManager)->getJson($base.'/leave-requests')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $second['id']);
+
+        $this->actingAs($manager)->postJson($newUrl.'/manager-decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertForbidden();
+        $this->actingAs($nextManager)->postJson($oldUrl.'/manager-decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertForbidden();
+        $this->actingAs($hr)->postJson($oldUrl.'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertConflict();
+
+        $this->actingAs($manager)->postJson($oldUrl.'/manager-decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk()->assertJsonPath('data.revision', 3);
+        $this->actingAs($nextManager)->postJson($newUrl.'/manager-decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk()->assertJsonPath('data.revision', 3);
+        $this->actingAs($staff)->postJson($oldUrl.'/decision', [
+            'revision' => 3, 'decision' => 'approved',
+        ])->assertForbidden();
+        $this->actingAs($hr)->postJson($oldUrl.'/decision', [
+            'revision' => 3, 'decision' => 'approved',
+        ])->assertOk()->assertJsonPath('data.status', 'approved');
+        $this->postJson($newUrl.'/decision', [
+            'revision' => 3, 'decision' => 'approved',
+        ])->assertOk()->assertJsonPath('data.status', 'approved');
+
+        $this->assertDatabaseCount('employee_leaves', 2);
+        $this->actingAs($staff)->getJson($base.'/me/leave-balances?year=2026')
+            ->assertOk()->assertJsonPath('data.0.available_days', 12)
+            ->assertJsonPath('data.0.booked_days', 8);
+        $this->assertSame(2, DB::table('hr_audit_events')->where('company_id', $company)
+            ->where('action', 'leave.request_manager_approved')->count());
+        $this->assertSame(2, DB::table('hr_audit_events')->where('company_id', $company)
+            ->where('action', 'leave.request_approved')->count());
+        $this->assertDatabaseHas('hr_audit_events', [
+            'company_id' => $company, 'action' => 'department.updated',
+        ]);
+    }
+
     public function test_manager_routing_fails_closed_for_missing_and_ambiguous_reviewer(): void
     {
         $f = $this->fixture(); extract($f);
