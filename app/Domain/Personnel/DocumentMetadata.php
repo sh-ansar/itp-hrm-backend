@@ -36,6 +36,20 @@ final class DocumentMetadata
         return $normalized;
     }
 
+    public static function searchIndex(?string $title, ?string $number, ?string $description, array $tags): string
+    {
+        return mb_strtolower(implode(' ', array_filter([
+            trim((string) $title), trim((string) $number),
+            trim((string) $description), ...$tags,
+        ], static fn ($value) => $value !== '')));
+    }
+
+    public static function tagIndex(array $tags): string
+    {
+        // Delimit both ends to avoid partial matches between similarly named tags.
+        return '|'.implode('|', array_map('mb_strtolower', $tags)).'|';
+    }
+
     public static function decode(mixed $value): array
     {
         if ($value === null) return [];
