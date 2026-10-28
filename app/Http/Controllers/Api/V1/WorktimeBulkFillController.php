@@ -29,6 +29,7 @@ final class WorktimeBulkFillController extends Controller
             'dates.*' => ['required', 'date_format:Y-m-d', 'distinct'],
             'apply' => ['required', 'boolean'],
             'confirm' => ['sometimes', 'boolean'],
+            'preview_token' => ['sometimes', 'string', 'regex:/^[a-f0-9]{64}$/'],
         ]);
 
         foreach ($validated['dates'] as $index => $date) {
@@ -43,6 +44,11 @@ final class WorktimeBulkFillController extends Controller
                 'confirm' => 'Explicit confirmation is required before bulk saving.',
             ]);
         }
+        if ($validated['apply'] && empty($validated['preview_token'])) {
+            throw ValidationException::withMessages([
+                'preview_token' => 'Preview the requested dates and employees before saving.',
+            ]);
+        }
 
         return response()->json($service->run(
             $request->user(),
@@ -51,6 +57,7 @@ final class WorktimeBulkFillController extends Controller
             $validated['employee_ids'],
             $validated['dates'],
             (bool) $validated['apply'],
+            $validated['preview_token'] ?? null,
         ));
     }
 }

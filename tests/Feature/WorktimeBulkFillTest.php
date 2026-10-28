@@ -14,6 +14,7 @@ final class WorktimeBulkFillTest extends TestCase
 
     private function fixture(string $role = 'company_admin'): array
     {
+        $this->travelTo(now()->setDate(2026, 10, 28));
         $user = User::factory()->create();
         $company = (string) Str::uuid();
         $department = (string) Str::uuid();
@@ -62,15 +63,20 @@ final class WorktimeBulkFillTest extends TestCase
             'month' => '2026-10', 'employee_ids' => $employees,
             'dates' => ['2026-10-15', '2026-10-16'], 'apply' => false,
         ];
-        $this->actingAs($user)->postJson($url, $payload)->assertOk()
+        $preview = $this->actingAs($user)->postJson($url, $payload)->assertOk()
             ->assertJsonPath('meta.mode', 'preview')
             ->assertJsonPath('data.candidate_count', 1)
             ->assertJsonPath('data.already_recorded', 1)
             ->assertJsonPath('data.outside_employment', 1)
-            ->assertJsonPath('data.recorded_absence', 1);
+            ->assertJsonPath('data.recorded_absence', 1)->json();
+        $token = $preview['meta']['preview_token'];
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $token);
         $this->assertDatabaseCount('worktime_entries', 1);
         $this->postJson($url, [...$payload, 'apply' => true])->assertUnprocessable();
-        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true])->assertOk()
+        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true])
+            ->assertUnprocessable();
+        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true,
+            'preview_token' => $token])->assertOk()
             ->assertJsonPath('meta.mode', 'applied')
             ->assertJsonPath('meta.created_count', 1);
         $this->assertDatabaseCount('worktime_entries', 2);
@@ -82,8 +88,11 @@ final class WorktimeBulkFillTest extends TestCase
             'employee_id' => $employees[1], 'work_date' => '2026-10-16',
             'worked_minutes' => 480, 'revision' => 1,
         ]);
-        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true])->assertOk()
-            ->assertJsonPath('meta.created_count', 0);
+        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true,
+            'preview_token' => $token])->assertStatus(409);
+        $next = $this->postJson($url, $payload)->assertOk()->json('meta.preview_token');
+        $this->postJson($url, [...$payload, 'apply' => true, 'confirm' => true,
+            'preview_token' => $next])->assertOk()->assertJsonPath('meta.created_count', 0);
         $this->assertDatabaseCount('worktime_entries', 2);
     }
 
@@ -104,5 +113,36 @@ final class WorktimeBulkFillTest extends TestCase
             ...$payload, 'dates' => ['2026-09-15'],
         ])->assertUnprocessable();
         $this->assertDatabaseCount('worktime_entries', 0);
+    }
+
+    public function test_future_dates_are_skipped_and_a_changed_preview_is_rejected(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_bulk_fill_enabled', true);
+        [$user, $company, $employees, $url] = $this->fixture();
+        DB::table('production_calendar_days')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $company,
+            'work_date' => '2026-10-30', 'day_type' => 'workday',
+            'planned_minutes' => 480, 'revision' => 1,
+        ]);
+        $payload = [
+            'month' => '2026-10', 'employee_ids' => $employees,
+            'dates' => ['2026-10-15', '2026-10-30'], 'apply' => false,
+        ];
+        $response = $this->actingAs($user)->postJson($url, $payload)->assertOk()
+            ->assertJsonPath('data.future_date', 2)->assertJsonPath('data.candidate_count', 1)->json();
+        $token = $response['meta']['preview_token'];
+        DB::table('worktime_entries')->insert([
+            'id' => (string) Str::uuid(), 'employee_id' => $employees[0],
+            'work_date' => '2026-10-15', 'planned_minutes' => 480,
+            'worked_minutes' => 240, 'revision' => 1,
+        ]);
+        $this->postJson($url, [...$payload, 'apply' => true,
+            'confirm' => true, 'preview_token' => $token])->assertStatus(409);
+        $this->assertDatabaseCount('worktime_entries', 1);
+        $newToken = $this->postJson($url, $payload)->assertOk()->json('meta.preview_token');
+        $this->postJson($url, [...$payload, 'apply' => true,
+            'confirm' => true, 'preview_token' => $newToken])->assertStatus(200);
+        $this->assertDatabaseCount('worktime_entries', 1);
     }
 }

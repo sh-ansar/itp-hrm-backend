@@ -19,14 +19,18 @@ final class BulkTimesheetFill
      * never overwritten. Preview and apply use the same eligibility rules.
      */
     public function run(
-        User $actor, string $company, string $month, array $employeeIds, array $dates, bool $apply,
+        User $actor, string $company, string $month, array $employeeIds, array $dates,
+        bool $apply, ?string $previewToken = null,
     ): array {
         $dates = array_values($dates);
         sort($dates);
         $from = $dates[0];
         $to = $dates[array_key_last($dates)];
+        $eligibleDates = array_values(array_filter($dates,
+            static fn (string $date): bool => $date <= now()->toDateString()));
 
-        return DB::transaction(function () use ($actor, $company, $month, $employeeIds, $dates, $from, $to, $apply): array {
+        return DB::transaction(function () use ($actor, $company, $month, $employeeIds,
+            $dates, $eligibleDates, $from, $to, $apply, $previewToken): array {
             DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
             $status = DB::table('worktime_periods')->where('company_id', $company)
                 ->where('month', $month)->value('status');
@@ -43,9 +47,9 @@ final class BulkTimesheetFill
             }
 
             $calendar = DB::table('production_calendar_days')->where('company_id', $company)
-                ->whereIn('work_date', $dates)->get(['work_date', 'day_type', 'planned_minutes'])
+                ->whereIn('work_date', $eligibleDates)->get(['work_date', 'day_type', 'planned_minutes'])
                 ->keyBy('work_date');
-            if ($calendar->count() !== count($dates)) {
+            if ($calendar->count() !== count($eligibleDates)) {
                 throw ValidationException::withMessages([
                     'dates' => 'Complete the company production calendar for all selected dates first.',
                 ]);
@@ -80,10 +84,16 @@ final class BulkTimesheetFill
                 'approved_leave' => 0,
                 'recorded_absence' => 0,
                 'nonworking_date' => 0,
+                'future_date' => 0,
             ];
             $rows = [];
+            $candidates = [];
             foreach ($employeeIds as $employeeId) {
                 foreach ($dates as $date) {
+                    if ($date > now()->toDateString()) {
+                        $counts['future_date']++;
+                        continue;
+                    }
                     $day = $calendar->get($date);
                     $planned = (int) ($day->planned_minutes ?? 0);
                     if (!in_array($day->day_type, ['workday', 'shortened'], true) || $planned <= 0) {
@@ -119,6 +129,7 @@ final class BulkTimesheetFill
                         continue;
                     }
                     $counts['candidate_count']++;
+                    $candidates[] = $employeeId.'|'.$date.'|'.$planned;
                     if (!$apply) continue;
                     $now = now();
                     $rows[] = [
@@ -129,6 +140,17 @@ final class BulkTimesheetFill
                         'created_at' => $now, 'updated_at' => $now,
                     ];
                 }
+            }
+
+            sort($candidates);
+            $sortedIds = $employeeIds;
+            sort($sortedIds);
+            $snapshot = hash('sha256', json_encode([
+                $company, $month, $sortedIds, $dates, $candidates,
+            ], JSON_THROW_ON_ERROR));
+            if ($apply) {
+                abort_unless($previewToken !== null && hash_equals($snapshot, $previewToken), 409,
+                    'Attendance has changed since preview. Run a new preview before applying.');
             }
 
             if ($apply && $rows !== []) {
@@ -150,6 +172,7 @@ final class BulkTimesheetFill
                     'mode' => $apply ? 'applied' : 'preview',
                     'created_count' => count($rows),
                     'period_locked' => $locked,
+                    'preview_token' => $snapshot,
                 ],
             ];
         }, 3);
