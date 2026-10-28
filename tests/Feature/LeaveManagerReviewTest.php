@@ -379,7 +379,7 @@ final class LeaveManagerReviewTest extends TestCase
         $this->assertSame(2, DB::table('hr_audit_events')->where('company_id', $company)
             ->where('action', 'leave.request_approved')->count());
         $this->assertDatabaseHas('hr_audit_events', [
-            'company_id' => $company, 'action' => 'department.updated',
+            'company_id' => $company, 'action' => 'organization.department_updated',
         ]);
     }
 
