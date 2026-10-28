@@ -29,8 +29,7 @@ final class WorktimeTimesheetWriteController extends Controller
             'data' => $writer->days($company, $employee, $validated['month']),
             'meta' => [
                 'month' => $validated['month'],
-                'can_edit' => !config('hrm.worktime_period_approvals_enabled', false)
-                    || !in_array(\Illuminate\Support\Facades\DB::table('worktime_periods')
+                'can_edit' => !in_array(\Illuminate\Support\Facades\DB::table('worktime_periods')
                         ->where('company_id', $company)->where('month', $validated['month'])
                         ->value('status'), ['submitted', 'approved'], true),
             ],
