@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Worktime\AbsenceRegisterProjector;
 use App\Domain\Worktime\WorkforceAuthorization;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
@@ -312,6 +313,8 @@ final class WorktimeReadController extends Controller
         string $company,
         EmployeeVisibility $visibility,
         HrAuditWriter $audit,
+        AbsenceRegisterProjector $projector,
+        WorkforceAuthorization $authorization,
     ): JsonResponse {
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
@@ -319,68 +322,20 @@ final class WorktimeReadController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
         [$from, $to] = $this->monthBounds($validated['month']);
-
-        $query = DB::table('employee_absences as a')
-            ->joinSub(
-                $visibility->visibleFor($request->user(), $company),
-                've',
-                've.id',
-                '=',
-                'a.employee_id',
-            )
-            ->where('a.started_on', '<=', $to->toDateString())
-            ->where('a.ended_on', '>=', $from->toDateString())
-            ->select(
-                'a.id',
-                'a.employee_id',
-                'a.absence_type',
-                'a.reason',
-                'a.started_on',
-                'a.ended_on',
-                'a.absence_minutes',
-                'a.status',
-                'a.revision',
-                've.personnel_number',
-                've.last_name',
-                've.first_name',
-                've.middle_name',
-            )
-            ->selectSub($this->absenceDepartmentSubquery($company), 'department_name')
-            ->orderBy('a.started_on')
-            ->orderBy('ve.last_name')
-            ->orderBy('ve.first_name')
-            ->orderBy('a.id');
-
-        $page = $query->paginate((int) ($validated['per_page'] ?? 50));
-        $page->getCollection()->transform(static function (object $row): array {
-            $started = CarbonImmutable::parse($row->started_on);
-            $ended = CarbonImmutable::parse($row->ended_on);
-
-            return [
-                'id' => $row->id,
-                'employee_id' => $row->employee_id,
-                'personnel_number' => $row->personnel_number,
-                'last_name' => $row->last_name,
-                'first_name' => $row->first_name,
-                'middle_name' => $row->middle_name,
-                'department_name' => $row->department_name,
-                'absence_type' => $row->absence_type,
-                'reason' => $row->reason,
-                'started_on' => $row->started_on,
-                'ended_on' => $row->ended_on,
-                'days' => $started->diffInDays($ended) + 1,
-                'absence_minutes' => $row->absence_minutes !== null ? (int) $row->absence_minutes : null,
-                'status' => $row->status,
-                'revision' => (int) $row->revision,
-            ];
-        });
+        // EmployeeVisibility is the single authority for company and manager scopes.
+        $page = $projector->page(
+            $company, $visibility->visibleFor($request->user(), $company),
+            $from->toDateString(), $to->toDateString(),
+            (int) ($validated['per_page'] ?? 50),
+            $authorization->canReadProtectedLeaveDetails($request->user(), $company),
+        );
 
         $this->auditRead($audit, $request, $company, 'absences', $validated['month'], count($page->items()));
-
         return response()->json([
             'data' => $page->items(),
             'meta' => [
                 'month' => $validated['month'],
+                'sources' => ['absence', 'leave'],
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
