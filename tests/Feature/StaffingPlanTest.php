@@ -227,4 +227,73 @@ final class StaffingPlanTest extends TestCase
             'action' => 'staffing.plan_approved',
         ]);
     }
+
+    public function test_new_plan_can_copy_staffing_lines_atomically_from_existing_version(): void
+    {
+        extract($this->fixture());
+        $source = $this->createPlan($user, $company, [
+            'name' => 'Source plan', 'valid_from' => '2026-01-01', 'valid_to' => '2026-12-31',
+        ]);
+        $this->actingAs($user)->postJson("/api/v1/companies/{$company}/staffing-plans/{$source['id']}/lines", [
+            'department_id' => $department,
+            'position_id' => $position,
+            'planned_units' => 3,
+            'base_salary' => 550000,
+            'currency' => 'KZT',
+            'notes' => 'Preserve this staffing line',
+        ])->assertCreated();
+        $base = "/api/v1/companies/{$company}/staffing-plans";
+        $this->getJson($base)->assertOk()->assertJsonPath('meta.clone_supported', true);
+        $result = $this->postJson($base, [
+            'name' => 'Next year — draft', 'valid_from' => '2027-01-01',
+            'valid_to' => '2027-12-31',
+            'source_plan_id' => $source['id'],
+            'source_plan_revision' => $source['revision'],
+        ])->assertCreated()->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.copied_lines', 1)->json('data');
+
+        $this->assertDatabaseCount('staffing_plans', 2);
+        $this->assertDatabaseCount('staffing_plan_lines', 2);
+        $original = DB::table('staffing_plan_lines')->where('staffing_plan_id', $source['id'])->first();
+        $cloned = DB::table('staffing_plan_lines')->where('staffing_plan_id', $result['id'])->first();
+        $this->assertNotEquals($original->id, $cloned->id);
+        $this->assertEquals($original->department_id, $cloned->department_id);
+        $this->assertEquals($original->position_id, $cloned->position_id);
+        $this->assertEquals($original->planned_units, $cloned->planned_units);
+        $this->assertEquals($original->base_salary, $cloned->base_salary);
+        $this->assertEquals($original->currency, $cloned->currency);
+        $this->assertEquals($original->notes, $cloned->notes);
+        $this->assertEquals(1, $cloned->revision);
+        $this->assertEquals('draft', DB::table('staffing_plans')->where('id', $result['id'])->value('status'));
+
+        // Editing a copied line cannot mutate the approved or original version.
+        $this->postJson("$base/{$result['id']}/approve", ['revision' => 1])->assertOk();
+        $this->assertEquals('draft', DB::table('staffing_plans')->where('id', $source['id'])->value('status'));
+    }
+
+    public function test_source_must_belong_to_same_company_and_match_current_revision(): void
+    {
+        extract($this->fixture());
+        $source = $this->createPlan($user, $company);
+        $base = "/api/v1/companies/{$company}/staffing-plans";
+        $payload = [
+            'name' => 'Copied draft', 'valid_from' => '2028-01-01',
+            'valid_to' => null, 'source_plan_id' => $source['id'],
+            'source_plan_revision' => $source['revision'],
+        ];
+
+        DB::table('staffing_plans')->where('id', $source['id'])->increment('revision');
+        $this->postJson($base, $payload)->assertStatus(409);
+        $this->assertDatabaseCount('staffing_plans', 1);
+
+        DB::table('staffing_plans')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $otherCompany,
+            'name' => 'Foreign plan', 'valid_from' => '2026-01-01',
+            'status' => 'draft', 'revision' => 1,
+        ]);
+        $foreign = DB::table('staffing_plans')->where('company_id', $otherCompany)->value('id');
+        $this->postJson($base, [...$payload, 'source_plan_id' => $foreign])
+            ->assertUnprocessable()->assertJsonValidationErrors('source_plan_id');
+        $this->assertDatabaseCount('staffing_plans', 2);
+    }
 }

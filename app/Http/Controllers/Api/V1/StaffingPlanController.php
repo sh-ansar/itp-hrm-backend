@@ -34,6 +34,7 @@ final class StaffingPlanController extends Controller
             'data' => $page->items(),
             'meta' => [
                 'staffing_writes_enabled' => $this->canWrite($request, $company),
+                'clone_supported' => true,
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
@@ -132,13 +133,33 @@ final class StaffingPlanController extends Controller
     public function store(Request $request, string $company, HrAuditWriter $audit): JsonResponse
     {
         $this->authorizeWrite($request, $company);
-        $this->rejectUnexpected($request, ['name', 'valid_from', 'valid_to']);
+        $this->rejectUnexpected($request, ['name', 'valid_from', 'valid_to', 'source_plan_id', 'source_plan_revision']);
 
-        $data = $request->validate($this->planRules());
+        $data = $request->validate(array_merge($this->planRules(), [
+            'source_plan_id' => ['nullable', 'uuid'],
+            'source_plan_revision' => ['required_with:source_plan_id', 'integer', 'min:1'],
+        ]));
         $id = (string) Str::uuid();
 
-        DB::transaction(function () use ($request, $company, $data, $id, $audit): void {
+        $copiedLines = 0;
+        DB::transaction(function () use ($request, $company, $data, $id, $audit, &$copiedLines): void {
             DB::table('companies')->where('id', $company)->lockForUpdate()->firstOrFail();
+
+            $sourceId = $data['source_plan_id'] ?? null;
+            $sourceLines = collect();
+            if ($sourceId !== null) {
+                $source = DB::table('staffing_plans')->where('id', $sourceId)
+                    ->where('company_id', $company)->lockForUpdate()->first(['id', 'revision']);
+                if ($source === null) {
+                    throw ValidationException::withMessages([
+                        'source_plan_id' => 'Source staffing plan is unavailable for this company.',
+                    ]);
+                }
+                abort_unless((int) $source->revision === (int) $data['source_plan_revision'], 409,
+                    'Source staffing plan changed; refresh before copying.');
+                $sourceLines = DB::table('staffing_plan_lines')->where('staffing_plan_id', $sourceId)
+                    ->get(['department_id', 'position_id', 'planned_units', 'base_salary', 'currency', 'notes']);
+            }
 
             DB::table('staffing_plans')->insert([
                 'id' => $id,
@@ -152,9 +173,33 @@ final class StaffingPlanController extends Controller
                 'updated_at' => now(),
             ]);
 
+            // One transaction protects against partial copy and concurrent source edits.
+            $inserted = [];
+            $now = now();
+            foreach ($sourceLines as $line) {
+                $inserted[] = [
+                    'id' => (string) Str::uuid(),
+                    'staffing_plan_id' => $id,
+                    'department_id' => $line->department_id,
+                    'position_id' => $line->position_id,
+                    'planned_units' => $line->planned_units,
+                    'base_salary' => $line->base_salary,
+                    'currency' => $line->currency,
+                    'notes' => $line->notes,
+                    'revision' => 1,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            foreach (array_chunk($inserted, 150) as $chunk) {
+                DB::table('staffing_plan_lines')->insert($chunk);
+            }
+            $copiedLines = count($inserted);
             $audit->record($request->user(), $company, HrAuditAction::StaffingPlanCreated, null, [
                 'staffing_plan_id' => $id,
                 'revision' => 1,
+                'source_plan_id' => $sourceId,
+                'copied_lines' => $copiedLines,
             ]);
         });
 
@@ -165,6 +210,7 @@ final class StaffingPlanController extends Controller
             'valid_to' => $data['valid_to'] ?? null,
             'status' => 'draft',
             'revision' => 1,
+            'copied_lines' => $copiedLines,
         ]], 201);
     }
 
