@@ -46,6 +46,17 @@ final class LeaveManagerRouting
             ->where('reviewer.account_status', 'active')
             ->distinct()->pluck('reviewer.id');
 
+        // When a department head has been explicitly selected, an approval
+        // must reach that same employee's linked, scoped manager account.
+        // Unassigned legacy departments retain single-scope behavior.
+        $head = DB::table('departments')->where('id', $department)
+            ->where('company_id', $company)->value('manager_employee_id');
+        if ($head !== null) {
+            $linked = DB::table('employee_user_links')->where('company_id', $company)
+                ->where('employee_id', $head)->pluck('user_id')->map(fn ($id) => (int) $id);
+            $reviewers = $reviewers->filter(fn ($id) => $linked->contains((int) $id))->values();
+        }
+
         if ($reviewers->count() !== 1) {
             throw ValidationException::withMessages([
                 'manager' => 'Assign exactly one active manager to this department before submitting leave.',

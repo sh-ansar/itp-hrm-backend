@@ -26,8 +26,16 @@ final class DepartmentIndexController extends Controller
         ]);
 
         $query = DB::table('departments as d')
+            ->leftJoin('employees as manager', function ($join) use ($company): void {
+                $join->on('manager.id', '=', 'd.manager_employee_id')
+                    ->where('manager.company_id', $company);
+            })
             ->where('d.company_id', $company)
-            ->select('d.id', 'd.parent_id', 'd.name', 'd.revision');
+            ->select('d.id', 'd.parent_id', 'd.name', 'd.revision',
+                'd.manager_employee_id',
+                'manager.last_name as manager_last_name',
+                'manager.first_name as manager_first_name',
+                'manager.middle_name as manager_middle_name');
 
         // Managers may only inspect explicitly assigned departments; no inherited scopes.
         if ($role === 'department_manager') {
@@ -40,13 +48,24 @@ final class DepartmentIndexController extends Controller
         $page = $query->orderBy('d.name')->orderBy('d.id')
             ->paginate((int) ($validated['per_page'] ?? 25));
 
+        $rows = collect($page->items())->map(function ($row): object {
+            $row->manager_employee_name = $row->manager_employee_id === null
+                ? null
+                : trim(implode(' ', array_filter([
+                    $row->manager_last_name, $row->manager_first_name, $row->manager_middle_name,
+                ], static fn ($part) => is_string($part) && $part !== '')));
+            unset($row->manager_last_name, $row->manager_first_name, $row->manager_middle_name);
+            return $row;
+        })->all();
+
         return response()->json([
-            'data' => $page->items(),
+            'data' => $rows,
             'meta' => [
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
+                'manager_assignment_supported' => true,
                 'department_writes_enabled' => in_array($role, ['company_admin', 'hr_specialist'], true)
                     && (bool) config('hrm.personnel_writes_enabled', false),
             ],

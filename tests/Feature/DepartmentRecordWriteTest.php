@@ -139,6 +139,60 @@ final class DepartmentRecordWriteTest extends TestCase
         ]);
     }
 
+    public function test_explicit_department_manager_is_company_scoped_active_and_revisable(): void
+    {
+        extract($this->fixture());
+        $employee = (string) Str::uuid();
+        $foreignEmployee = (string) Str::uuid();
+        $position = (string) Str::uuid();
+        DB::table('positions')->insert(['id' => $position, 'company_id' => $company, 'name' => 'Lead']);
+        DB::table('employees')->insert([
+            ['id' => $employee, 'company_id' => $company,
+                'personnel_number' => 'LEAD-1', 'last_name' => 'Manager', 'first_name' => 'Test'],
+            ['id' => $foreignEmployee, 'company_id' => $otherCompany,
+                'personnel_number' => 'LEAD-2', 'last_name' => 'Foreign', 'first_name' => 'Manager'],
+        ]);
+        DB::table('employee_assignments')->insert([
+            'id' => (string) Str::uuid(), 'employee_id' => $employee,
+            'department_id' => $root, 'position_id' => $position, 'valid_from' => '2026-01-01',
+        ]);
+
+        $url = "/api/v1/companies/{$company}/departments/{$child}";
+        $this->actingAs($user)->putJson($url, [
+            'name' => 'Child', 'parent_id' => $root,
+            'manager_employee_id' => $foreignEmployee, 'revision' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('manager_employee_id');
+        $this->assertDatabaseHas('departments', ['id' => $child, 'manager_employee_id' => null, 'revision' => 1]);
+
+        $this->putJson($url, [
+            'name' => 'Child', 'parent_id' => $root,
+            'manager_employee_id' => $employee, 'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.manager_employee_id', $employee)->assertJsonPath('data.revision', 2);
+        $this->getJson("/api/v1/companies/{$company}/departments?per_page=100")
+            ->assertOk()->assertJsonPath('meta.manager_assignment_supported', true)
+            ->assertJsonFragment(['manager_employee_id' => $employee, 'manager_employee_name' => 'Manager Test']);
+
+        $this->putJson($url, ['name' => 'Renamed', 'parent_id' => $root, 'revision' => 2])
+            ->assertOk()->assertJsonPath('data.manager_employee_id', $employee);
+        $this->putJson($url, [
+            'name' => 'Renamed', 'parent_id' => $root,
+            'manager_employee_id' => null, 'revision' => 3,
+        ])->assertOk()->assertJsonPath('data.manager_employee_id', null);
+        $this->assertDatabaseHas('departments', ['id' => $child, 'manager_employee_id' => null, 'revision' => 4]);
+    }
+
+    public function test_inactive_manager_cannot_be_selected(): void
+    {
+        extract($this->fixture());
+        $employee = (string) Str::uuid();
+        DB::table('employees')->insert(['id' => $employee, 'company_id' => $company,
+            'personnel_number' => 'INACTIVE', 'last_name' => 'Inactive', 'first_name' => 'Employee']);
+        $this->actingAs($user)->putJson("/api/v1/companies/{$company}/departments/{$child}", [
+            'name' => 'Child', 'parent_id' => $root,
+            'manager_employee_id' => $employee, 'revision' => 1,
+        ])->assertUnprocessable()->assertJsonValidationErrors('manager_employee_id');
+    }
+
     public function test_delete_only_allows_unused_leaf_department(): void
     {
         extract($this->fixture());

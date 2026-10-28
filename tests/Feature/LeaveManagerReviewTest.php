@@ -205,6 +205,32 @@ final class LeaveManagerReviewTest extends TestCase
         $this->assertDatabaseCount('employee_leaves', 0);
     }
 
+    public function test_selected_department_head_must_have_the_matching_scoped_login(): void
+    {
+        $f = $this->fixture(); extract($f);
+        config()->set('hrm.leave_manager_route_snapshot_enabled', true);
+        // The one manager with a scope is not linked to the selected employee.
+        DB::table('departments')->where('id', $department)
+            ->update(['manager_employee_id' => $otherEmployee]);
+        $this->actingAs($staff)->postJson($base.'/me/leave-requests', $payload)
+            ->assertCreated();
+        $draft = DB::table('leave_requests')->where('employee_id', $employee)->first();
+        $this->postJson($base.'/me/leave-requests/'.$draft->id.'/submit', ['revision' => 1])
+            ->assertUnprocessable()->assertJsonValidationErrors('manager');
+        // Linking the actual department head to the scoped manager permits
+        // submission, without permitting a different manager to approve.
+        DB::table('employee_user_links')->insert([
+            'company_id' => $company, 'employee_id' => $otherEmployee,
+            'user_id' => $manager->id, 'revision' => 1,
+        ]);
+        $this->postJson($base.'/me/leave-requests/'.$draft->id.'/submit', ['revision' => 1])
+            ->assertOk()->assertJsonPath('data.status', 'submitted');
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $draft->id, 'assigned_manager_user_id' => $manager->id,
+            'manager_department_id' => $department,
+        ]);
+    }
+
     public function test_explicit_manager_route_is_pinned_and_other_manager_in_same_department_cannot_approve(): void
     {
         $f = $this->fixture(); extract($f);
