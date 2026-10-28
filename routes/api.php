@@ -203,6 +203,8 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')->whereUuid('document');
         Route::post('/companies/{company}/documents', [PersonnelDocumentController::class, 'store'])
             ->whereUuid('company');
+        Route::put('/companies/{company}/documents/{document}/metadata', [PersonnelDocumentController::class, 'metadata'])
+            ->whereUuid('company')->whereUuid('document');
         Route::put('/companies/{company}/documents/{document}/employee-access', [PersonnelDocumentController::class, 'employeeAccess'])
             ->whereUuid('company')->whereUuid('document');
         Route::post('/companies/{company}/documents/{document}/file', [PersonnelDocumentFileController::class, 'upload'])
