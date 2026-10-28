@@ -19,7 +19,7 @@ final class WorktimeTimesheetWriteController extends Controller
         WorkforceAuthorization $authorization,
     ): JsonResponse {
         abort_unless((bool) config('hrm.worktime_writes_enabled', false), 404);
-        abort_unless($authorization->canEditTimesheet($request->user(), $company), 403);
+        abort_unless($authorization->canEditEmployeeTimesheet($request->user(), $company, $employee), 403);
 
         $validated = $request->validate([
             'month' => ['required', 'date_format:Y-m'],
