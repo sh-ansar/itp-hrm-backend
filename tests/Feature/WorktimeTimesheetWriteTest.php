@@ -250,6 +250,46 @@ final class WorktimeTimesheetWriteTest extends TestCase
     }
 
 
+    public function test_future_actual_work_absence_and_overtime_are_denied_atomically_but_empty_correction_is_allowed(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        [$user, $company, $employee, $url] = $this->fixture();
+        // fixture() fixes the baseline date at October 28, so freeze AFTER it.
+        $this->travelTo(now()->setDate(2026, 10, 15)->startOfDay());
+
+        foreach (['worked_minutes', 'absence_minutes', 'overtime_minutes'] as $field) {
+            $future = $this->day('2026-10-16', null, [
+                'worked_minutes' => 0,
+                'absence_minutes' => 0,
+                'overtime_minutes' => 0,
+                $field => 60,
+            ]);
+            $this->actingAs($user)->putJson($url, [
+                'month' => '2026-10',
+                'days' => [$this->day('2026-10-15'), $future],
+            ])->assertUnprocessable()->assertJsonValidationErrors(['days.1.date']);
+            $this->assertDatabaseCount('worktime_entries', 0);
+        }
+
+        // A null-only future entry can be used to clear existing invalid actuals.
+        $this->actingAs($user)->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-16', null, [
+                'worked_minutes' => null,
+                'absence_minutes' => null,
+                'overtime_minutes' => null,
+            ])],
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee,
+            'work_date' => '2026-10-16',
+            'worked_minutes' => null,
+            'absence_minutes' => null,
+            'overtime_minutes' => null,
+        ]);
+    }
+
     public function test_future_actual_attendance_is_rejected_without_creating_rows(): void
     {
         config()->set('hrm.worktime_writes_enabled', true);
