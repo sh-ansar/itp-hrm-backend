@@ -32,11 +32,15 @@ final class TimesheetEntryWriter
 
             $dates = array_column($days, 'date');
             foreach ($days as $index => $day) {
-                // Planning is done in the production calendar. A timesheet
-                // records actual attendance and therefore cannot be future-dated.
-                if ($day['date'] > now()->toDateString()) {
+                // Planned future days belong to the calendar, not actual attendance.
+                // Allow a null/zero-only correction so incorrect legacy future values
+                // can be cleared, but never permit future worked/absence/overtime.
+                if ($day['date'] > now()->toDateString()
+                    && ((int) ($day['worked_minutes'] ?? 0) > 0
+                        || (int) ($day['absence_minutes'] ?? 0) > 0
+                        || (int) ($day['overtime_minutes'] ?? 0) > 0)) {
                     throw ValidationException::withMessages([
-                        "days.{$index}.date" => 'Future actual attendance cannot be recorded.',
+                        "days.{$index}.date" => 'Future dates cannot contain actual timesheet values.',
                     ]);
                 }
             }
