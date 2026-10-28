@@ -168,6 +168,9 @@ final class WorktimeReadController extends Controller
                 'month' => $validated['month'],
                 'summary' => $summary,
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'worktime_bulk_fill_enabled' => (bool) config('hrm.worktime_bulk_fill_enabled', false)
+                    && app(\App\Domain\Worktime\WorkforceAuthorization::class)
+                        ->canEditTimesheet($request->user(), $company),
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'per_page' => $page->perPage(),
