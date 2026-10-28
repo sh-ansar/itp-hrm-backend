@@ -96,6 +96,54 @@ final class WorktimeBulkFillTest extends TestCase
         $this->assertDatabaseCount('worktime_entries', 2);
     }
 
+    public function test_shift_days_are_not_auto_filled_without_an_individual_verified_day_plan(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_bulk_fill_enabled', true);
+        [$admin, $company, $employees, $url] = $this->fixture();
+        $shift = (string) Str::uuid();
+        $regular = (string) Str::uuid();
+        DB::table('work_schedules')->insert([
+            ['id' => $shift, 'company_id' => $company, 'code' => 'SHIFT',
+                'name' => 'Rotating shift', 'schedule_type' => 'shift'],
+            ['id' => $regular, 'company_id' => $company, 'code' => 'STANDARD',
+                'name' => 'Standard five-day', 'schedule_type' => 'standard'],
+        ]);
+        foreach ([[$employees[0], $shift], [$employees[1], $regular]] as [$employee, $schedule]) {
+            DB::table('employee_work_schedules')->insert([
+                'id' => (string) Str::uuid(), 'employee_id' => $employee,
+                'work_schedule_id' => $schedule, 'valid_from' => '2026-10-01',
+            ]);
+        }
+        $payload = ['month' => '2026-10', 'employee_ids' => $employees,
+            'dates' => ['2026-10-16'], 'apply' => false];
+        $preview = $this->actingAs($admin)->postJson($url, $payload)->assertOk()
+            ->assertJsonPath('data.candidate_count', 1)
+            ->assertJsonPath('data.unknown_shift_schedule', 1)->json();
+        $oldToken = $preview['meta']['preview_token'];
+        $this->postJson($url, [
+            ...$payload, 'apply' => true, 'confirm' => true, 'preview_token' => $oldToken,
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+        $this->assertDatabaseMissing('worktime_entries', [
+            'employee_id' => $employees[0], 'work_date' => '2026-10-16',
+        ]);
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employees[1], 'work_date' => '2026-10-16', 'worked_minutes' => 480,
+        ]);
+        DB::table('work_schedules')->where('id', $shift)->update(['schedule_type' => 'standard']);
+        $this->postJson($url, [
+            ...$payload, 'apply' => true, 'confirm' => true, 'preview_token' => $oldToken,
+        ])->assertStatus(409);
+        $new = $this->postJson($url, $payload)->assertOk()
+            ->assertJsonPath('data.unknown_shift_schedule', 0)
+            ->assertJsonPath('data.already_recorded', 1)
+            ->assertJsonPath('data.candidate_count', 1)->json('meta.preview_token');
+        $this->postJson($url, [
+            ...$payload, 'apply' => true, 'confirm' => true, 'preview_token' => $new,
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+        $this->assertDatabaseCount('worktime_entries', 2);
+    }
+
     public function test_endpoint_is_fail_closed_role_scoped_and_rejects_foreign_employees(): void
     {
         [$admin, $company, $employees, $url] = $this->fixture();
