@@ -208,7 +208,9 @@ final class WorktimeMatrixReader
                     'state' => $state,
                     'locked' => $date['locked'],
                     'editable' => $canWrite && !$date['locked'] && $when <= $today && $cal !== null
-                        && !$onLeave && !$onAbsence && !$unverifiedShift,
+                        && !$onLeave && !$onAbsence && !$unverifiedShift && $planned !== null
+                        && (int) $planned > 0
+                        && ($plan !== null || in_array($cal->day_type, ['workday', 'shortened'], true)),
                 ];
             }
             $rows[] = [

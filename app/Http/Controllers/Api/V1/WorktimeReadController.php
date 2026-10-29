@@ -178,6 +178,8 @@ final class WorktimeReadController extends Controller
                 'day_filter_supported' => true,
                 'summary' => $summary,
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'worktime_matrix_enabled' => app(\App\Domain\Worktime\WorktimeMatrixAuthorization::class)
+                    ->canRead($request->user(), $company),
                 'worktime_bulk_fill_enabled' => (bool) config('hrm.worktime_bulk_fill_enabled', false)
                     && app(\App\Domain\Worktime\WorkforceAuthorization::class)
                         ->canEditTimesheet($request->user(), $company),
