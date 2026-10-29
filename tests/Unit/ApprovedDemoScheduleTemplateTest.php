@@ -34,7 +34,7 @@ final class ApprovedDemoScheduleTemplateTest extends TestCase
         self::assertSame('cycle',$policy);
         self::assertSame([720,720,0,0],array_column($days,'minutes'));
         self::assertSame(['D','D',null,null],array_column($days,'shift_code'));
-        self::assertSame(42.0, array_sum(array_column($days,'minutes'))/4*7/60);
+        self::assertEqualsWithDelta(42.0, array_sum(array_column($days,'minutes'))/4*7/60, 0.00001);
     }
 
     public function test_unexpected_schedule_or_weekly_minutes_is_rejected(): void
