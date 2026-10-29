@@ -168,6 +168,13 @@ final class WorktimeReadController extends Controller
             'overtime_minutes' => $employeesWithEntries > 0 ? $this->nullableInt($summaryRaw->overtime_minutes) : null,
         ];
 
+        // Direct HR entry; legacy approved/submitted periods remain immutable.
+        $legacyStatus = DB::table('worktime_periods')->where('company_id', $company)
+            ->where('month', $validated['month'])->value('status');
+        $legacyLocked = in_array($legacyStatus, ['submitted', 'approved'], true);
+        $canEnterActual = app(WorkforceAuthorization::class)
+            ->canEditTimesheet($request->user(), $company);
+
         $this->auditRead($audit, $request, $company, 'timesheet', $validated['month'], count($page->items()));
 
         return response()->json([
@@ -177,7 +184,10 @@ final class WorktimeReadController extends Controller
                 'day' => $validated['day'] ?? null,
                 'day_filter_supported' => true,
                 'summary' => $summary,
-                'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
+                'worktime_writes_enabled' => $canEnterActual,
+                'period_locked' => $legacyLocked,
+                'worktime_matrix_enabled' => app(\App\Domain\Worktime\WorktimeMatrixAuthorization::class)
+                    ->canRead($request->user(), $company),
                 'worktime_bulk_fill_enabled' => (bool) config('hrm.worktime_bulk_fill_enabled', false)
                     && app(\App\Domain\Worktime\WorkforceAuthorization::class)
                         ->canEditTimesheet($request->user(), $company),

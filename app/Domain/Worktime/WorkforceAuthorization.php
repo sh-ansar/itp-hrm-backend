@@ -150,38 +150,15 @@ final class WorkforceAuthorization
             ->exists();
     }
 
+    /**
+     * Only HR and company administrators record actual hours.
+     * A department manager can still plan team schedules through canPlanEmployees(),
+     * but must never post a factual worktime entry, even if the legacy manager
+     * entry flag was enabled in an older environment.
+     */
     public function canEditEmployeeTimesheet(User $actor, string $companyId, string $employeeId): bool
     {
-        if ($this->canEditTimesheet($actor, $companyId)) return true;
-        if (!config('hrm.worktime_writes_enabled', false)
-            || !config('hrm.worktime_manager_entry_enabled', false)) return false;
-
-        $role = DB::table('company_user_roles')
-            ->where('company_id', $companyId)
-            ->where('user_id', $actor->getAuthIdentifier())
-            ->value('role_code');
-        if ($role !== 'department_manager') return false;
-
-        $today = now()->toDateString();
-        return DB::table('employees as employee')
-            ->where('employee.company_id', $companyId)
-            ->where('employee.id', $employeeId)
-            ->whereExists(function ($query) use ($today, $companyId, $actor): void {
-                $query->selectRaw('1')
-                    ->from('employee_assignments as assignment')
-                    ->join('departments as department', 'department.id', '=', 'assignment.department_id')
-                    ->join('department_access_scopes as scope', function ($join) use ($companyId, $actor): void {
-                        $join->on('scope.department_id', '=', 'assignment.department_id')
-                            ->where('scope.company_id', $companyId)
-                            ->where('scope.user_id', $actor->getAuthIdentifier());
-                    })
-                    ->whereColumn('assignment.employee_id', 'employee.id')
-                    ->where('department.company_id', $companyId)
-                    ->where('assignment.valid_from', '<=', $today)
-                    ->where(function ($dates) use ($today): void {
-                        $dates->whereNull('assignment.valid_to')->orWhere('assignment.valid_to', '>=', $today);
-                    });
-            })->exists();
+        return $this->canEditTimesheet($actor, $companyId);
     }
 
     public function canEditCalendar(User $actor, string $companyId): bool

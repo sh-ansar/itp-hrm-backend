@@ -76,6 +76,32 @@ final class WorktimeTimesheetWriteTest extends TestCase
         $this->assertDatabaseCount('worktime_entries', 0);
     }
 
+    public function test_hr_records_and_corrects_actual_hours_without_any_timesheet_approval(): void
+    {
+        config()->set('hrm.worktime_writes_enabled', true);
+        config()->set('hrm.worktime_period_approvals_enabled', false);
+        [$hr, $company, $employee, $url] = $this->fixture('hr_specialist');
+        $monthly = "/api/v1/companies/{$company}/worktime/timesheet?month=2026-10";
+
+        $this->actingAs($hr)->getJson($monthly)
+            ->assertOk()->assertJsonPath('meta.worktime_writes_enabled', true)
+            ->assertJsonPath('meta.period_locked', false);
+        $this->putJson($url, [
+            'month' => '2026-10', 'days' => [$this->day()],
+        ])->assertOk()->assertJsonPath('meta.created_count', 1);
+        $this->putJson($url, [
+            'month' => '2026-10',
+            'days' => [$this->day('2026-10-15', 1, ['worked_minutes' => 420])],
+        ])->assertOk()->assertJsonPath('meta.updated_count', 1);
+        $this->assertDatabaseHas('worktime_entries', [
+            'employee_id' => $employee, 'work_date' => '2026-10-15',
+            'worked_minutes' => 420, 'revision' => 2,
+        ]);
+        $this->getJson("/api/v1/companies/{$company}/worktime/periods?month=2026-10")
+            ->assertNotFound();
+        $this->assertDatabaseCount('worktime_periods', 0);
+    }
+
     public function test_company_admin_and_hr_can_edit_but_employee_cannot(): void
     {
         config()->set('hrm.worktime_writes_enabled', true);
@@ -199,7 +225,7 @@ final class WorktimeTimesheetWriteTest extends TestCase
 
         $this->assertDatabaseCount('worktime_entries', 0);
     }
-    public function test_department_manager_can_write_only_the_employee_in_their_explicit_scope(): void
+    public function test_department_manager_can_plan_but_never_post_actual_attendance(): void
     {
         config()->set('hrm.worktime_writes_enabled', true);
         [$manager, $company, $employee, $url] = $this->fixture('department_manager');
@@ -231,9 +257,9 @@ final class WorktimeTimesheetWriteTest extends TestCase
 
         $this->actingAs($manager)->putJson($url, $payload)->assertForbidden();
         config()->set('hrm.worktime_manager_entry_enabled', true);
-        $this->actingAs($manager)->getJson($url.'?month=2026-10')->assertOk();
-        $this->actingAs($manager)->putJson($url, $payload)
-            ->assertOk()->assertJsonPath('meta.created_count', 1);
+        // Legacy configuration must not override HR-only actual attendance.
+        $this->actingAs($manager)->getJson($url.'?month=2026-10')->assertForbidden();
+        $this->actingAs($manager)->putJson($url, $payload)->assertForbidden();
         $this->actingAs($manager)->getJson($otherUrl.'?month=2026-10')->assertForbidden();
         $this->actingAs($manager)->putJson($otherUrl, $payload)->assertForbidden();
         $this->assertDatabaseMissing('worktime_entries', [
@@ -244,8 +270,8 @@ final class WorktimeTimesheetWriteTest extends TestCase
         $this->actingAs($manager)->putJson($url, [
             'month' => '2026-10', 'days' => [$this->day('2026-10-15', 1)],
         ])->assertForbidden();
-        $this->assertDatabaseHas('worktime_entries', [
-            'employee_id' => $employee, 'work_date' => '2026-10-15', 'revision' => 1,
+        $this->assertDatabaseMissing('worktime_entries', [
+            'employee_id' => $employee, 'work_date' => '2026-10-15',
         ]);
     }
 
