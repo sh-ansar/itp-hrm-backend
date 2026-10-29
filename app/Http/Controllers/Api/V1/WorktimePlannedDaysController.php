@@ -33,6 +33,11 @@ final class WorktimePlannedDaysController extends Controller
         $visibleIds = $visibility->visibleFor($request->user(), $company)
             ->whereIn('employees.id', $input['employee_ids'])->pluck('employees.id')->all();
         abort_unless(count($visibleIds) === count($input['employee_ids']), 404);
+        if (!$access->canEditTimesheet($request->user(), $company)) {
+            abort_unless($access->canPlanEmployees(
+                $request->user(), $company, $visibleIds, $input['from'], $input['to'],
+            ), 404);
+        }
 
         $query = DB::table('employee_work_plans as p')
             ->join('work_schedule_patterns as sp', 'sp.id', '=', 'p.pattern_id')

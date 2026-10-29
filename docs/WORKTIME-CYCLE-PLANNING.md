@@ -19,7 +19,9 @@ isolated database, verifying company calendars, and passing role-based UI/API ac
 - `work_schedule_patterns` holds immutable JSON pattern versions referenced by a schedule.
   `days` is 1–60 ordered `{minutes, shift_code}` entries, minimum one working day.
   `calendar_policy=company` requires seven Monday-first entries and respects
-  company holidays / non-working dates and shortened workdays.
+  statutory holidays and shortened workdays. A working Saturday in a 6/1
+  template remains planned even if the company's 5/2 default marks Saturday
+  as a weekend. Payroll classification remains a separate concern.
   `calendar_policy=cycle` repeats continuously from each assignment's start and
   offset (different crews can start in different phases).
 - `employee_work_schedules` records the assignment interval, pinned pattern ID,

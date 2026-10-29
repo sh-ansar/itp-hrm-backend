@@ -82,11 +82,13 @@ final class ScheduleCyclePlanner
             $leaves = DB::table('employee_leaves')->whereIn('employee_id', $ids)
                 ->whereNull('cancelled_at')->where('planned_started_on', '<=', $input['to'])
                 ->where('planned_ended_on', '>=', $input['from'])
+                ->orderBy('employee_id')->orderBy('id')
                 ->get(['id', 'employee_id', 'planned_started_on', 'planned_ended_on'])
                 ->groupBy('employee_id');
             $absences = DB::table('employee_absences')->whereIn('employee_id', $ids)
                 ->where('status', '<>', 'cancelled')->where('started_on', '<=', $input['to'])
                 ->where('ended_on', '>=', $input['from'])
+                ->orderBy('employee_id')->orderBy('id')
                 ->get(['id', 'employee_id', 'started_on', 'ended_on'])
                 ->groupBy('employee_id');
 
@@ -174,7 +176,7 @@ final class ScheduleCyclePlanner
                         $weekday = CarbonImmutable::parse($date)->dayOfWeekIso - 1;
                         $templateDay = $days[$weekday];
                         $minutes = (int) $templateDay['minutes'];
-                        if (in_array($calendarDay->day_type, ['holiday', 'weekend'], true)) {
+                        if ($calendarDay->day_type === 'holiday') {
                             $minutes = 0;
                         } elseif ($calendarDay->day_type === 'shortened') {
                             $minutes = min($minutes, (int) ($calendarDay->planned_minutes ?? $minutes));

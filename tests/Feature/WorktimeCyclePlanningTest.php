@@ -279,6 +279,29 @@ final class WorktimeCyclePlanningTest extends TestCase
         ]);
     }
 
+    public function test_six_day_template_keeps_saturday_when_company_default_is_five_day_week(): void
+    {
+        $fx = $this->fixture();
+        $this->enablePlanning();
+        $days = array_map(fn (int $i): array => [
+            'minutes' => $i < 6 ? 420 : 0, 'shift_code' => null,
+        ], range(0, 6));
+        $this->createPattern($fx, 'company', $days);
+        DB::table('production_calendar_days')->where('company_id', $fx['company'])
+            ->where('work_date', '2026-11-07')
+            ->update(['day_type' => 'weekend', 'planned_minutes' => 0]);
+        $payload = $this->request($fx);
+        $preview = $this->actingAs($fx['admin'])->postJson($this->url($fx), $payload)
+            ->assertOk()->json('meta.preview_token');
+        $this->postJson($this->url($fx), [
+            ...$payload, 'apply' => true, 'confirm' => true, 'preview_token' => $preview,
+        ])->assertOk();
+        $this->assertDatabaseHas('employee_work_plans', [
+            'employee_id' => $fx['employee'],
+            'work_date' => '2026-11-07', 'planned_minutes' => 420,
+        ]);
+    }
+
     public function test_future_replacement_splits_assignment_but_preserves_outside_days(): void
     {
         $fx = $this->fixture();
@@ -364,6 +387,17 @@ final class WorktimeCyclePlanningTest extends TestCase
         $this->getJson($readUrl.'?'.http_build_query([
             'from' => '2026-11-01', 'to' => '2026-11-08',
             'employee_ids' => [$fx['employee'], $fx['stranger']],
+        ]))->assertNotFound();
+        DB::table('employee_assignments')->where('employee_id', $fx['employee'])
+            ->update(['valid_to' => '2026-11-04']);
+        DB::table('employee_assignments')->insert([
+            'id' => (string) Str::uuid(), 'employee_id' => $fx['employee'],
+            'department_id' => $fx['other'], 'position_id' => $fx['position'],
+            'valid_from' => '2026-11-05',
+        ]);
+        $this->getJson($readUrl.'?'.http_build_query([
+            'from' => '2026-11-01', 'to' => '2026-11-08',
+            'employee_ids' => [$fx['employee']],
         ]))->assertNotFound();
         $this->actingAs($fx['outsider'])->getJson($readUrl.'?'.http_build_query([
             'from' => '2026-11-01', 'to' => '2026-11-08',
