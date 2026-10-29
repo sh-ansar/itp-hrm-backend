@@ -88,6 +88,63 @@ final class LeaveBalanceService
     }
 
     /**
+     * Actual use is deliberately separate from approved reservations. A missing
+     * actual record on an elapsed booking is UNKNOWN, never a fabricated zero.
+     * The entitlement ledger retains its existing booking/approval semantics.
+     */
+    public function actualUsage(string $company, string $employee, object $type, int $year, array $balance): array
+    {
+        $this->checkYear($year);
+        $first = sprintf('%04d-01-01', $year);
+        $last = sprintf('%04d-12-31', $year);
+        $today = now()->toDateString();
+        $records = DB::table('employee_leaves')
+            ->where('employee_id', $employee)->where('leave_type_id', $type->id)
+            ->whereNull('cancelled_at')
+            ->where(function ($q) use ($first, $last): void {
+                $q->where(function ($period) use ($first, $last): void {
+                    $period->where('planned_started_on', '<=', $last)
+                        ->where('planned_ended_on', '>=', $first);
+                })->orWhere(function ($period) use ($first, $last): void {
+                    $period->whereNotNull('actual_started_on')->where('actual_started_on', '<=', $last)
+                        ->where('actual_ended_on', '>=', $first);
+                });
+            })->get(['planned_started_on','planned_ended_on',
+                'actual_started_on','actual_ended_on','actual_days']);
+        $actual = 0;
+        $unverified = 0;
+        foreach ($records as $record) {
+            if ($record->actual_started_on === null || $record->actual_ended_on === null
+                || $record->actual_days === null) {
+                if ($record->planned_started_on <= $today && $record->planned_ended_on <= $today) {
+                    $unverified++;
+                }
+                continue;
+            }
+            // A future actual date is not verified usage.
+            if ($record->actual_ended_on > $today) {
+                $unverified++;
+                continue;
+            }
+            $days = $this->sliceDays($company, (string) $type->balance_method, $year,
+                $record->actual_started_on, $record->actual_ended_on, (int) $record->actual_days);
+            if ($days === null) {
+                $unverified++;
+                continue;
+            }
+            $actual += $days;
+        }
+        $entitlement = $balance['granted_days'] === null ? null
+            : $balance['granted_days'] + $balance['carried_days'] + $balance['adjustment_days'];
+        return [
+            'actual_verified_days' => $unverified === 0 ? $actual : null,
+            'actual_unverified_records' => $unverified,
+            'unspent_entitlement_days' => ($entitlement !== null && $unverified === 0)
+                ? $entitlement - $actual : null,
+        ];
+    }
+
+    /**
      * Approved bookings are counted from employee_leaves (including historical
      * imported leaves), not double-counted via published leave_requests.
      * In-year days use the approved immutable planned_days; cross-year working
