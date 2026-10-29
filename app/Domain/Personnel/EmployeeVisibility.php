@@ -43,24 +43,8 @@ final class EmployeeVisibility
 
         if ($role === CompanyRole::DepartmentManager) {
             $today = now()->toDateString();
-            // Parent department grants cover its children, not unrelated teams.
-            $scope = DB::table('department_access_scopes')->where('company_id', $companyId)
-                ->where('user_id', $user->getAuthIdentifier())->pluck('department_id')->all();
-            $allowed = array_fill_keys($scope, true);
-            $departments = DB::table('departments')->where('company_id', $companyId)
-                ->get(['id', 'parent_id']);
-            for ($pass = 0; $pass <= $departments->count(); $pass++) {
-                $changed = false;
-                foreach ($departments as $department) {
-                    if (isset($allowed[$department->id])
-                        || !$department->parent_id || !isset($allowed[$department->parent_id])) continue;
-                    $allowed[$department->id] = true;
-                    $changed = true;
-                }
-                if (!$changed) break;
-            }
 
-            $query->whereExists(function (Builder $sub) use ($companyId, $today, $allowed): void {
+            $query->whereExists(function (Builder $sub) use ($user, $companyId, $today): void {
                 $sub->selectRaw('1')
                     ->from('employee_assignments as a')
                     ->join('departments as d', 'd.id', '=', 'a.department_id')
@@ -70,7 +54,12 @@ final class EmployeeVisibility
                     ->where(function (Builder $dates) use ($today): void {
                         $dates->whereNull('a.valid_to')->orWhere('a.valid_to', '>=', $today);
                     })
-                    ->whereIn('a.department_id', array_keys($allowed));
+                    ->whereIn('a.department_id', function (Builder $scopes) use ($user, $companyId): void {
+                        $scopes->select('department_id')
+                            ->from('department_access_scopes')
+                            ->where('user_id', $user->getAuthIdentifier())
+                            ->where('company_id', $companyId);
+                    });
             });
         }
 
