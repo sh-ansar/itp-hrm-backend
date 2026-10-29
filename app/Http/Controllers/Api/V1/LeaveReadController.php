@@ -105,6 +105,7 @@ final class LeaveReadController extends Controller
                 'l.actual_started_on',
                 'l.actual_ended_on',
                 'l.actual_days',
+                'l.actual_review_state',
                 'l.revision',
                 'lt.code as leave_type_code',
                 'lt.name as leave_type_name',
@@ -165,7 +166,9 @@ final class LeaveReadController extends Controller
         $masked = !$canReadProtected && in_array($row->category, ['maternity', 'childcare', 'medical'], true);
 
         $status = 'planned';
-        if ($actualStarted !== null && $actualStarted <= $today
+        if ($row->actual_review_state === 'not_taken') {
+            $status = 'not_taken';
+        } elseif ($actualStarted !== null && $actualStarted <= $today
             && ($actualEnded === null || $actualEnded >= $today)) {
             $status = 'ongoing';
         } elseif ($actualStarted !== null && $actualEnded !== null && $actualEnded < $today) {
@@ -196,6 +199,7 @@ final class LeaveReadController extends Controller
             'actual_started_on' => $actualStarted,
             'actual_ended_on' => $actualEnded,
             'actual_days' => $row->actual_days !== null ? (int) $row->actual_days : null,
+            'actual_review_state' => $row->actual_review_state,
             'started_on' => $actualStarted ?? $row->planned_started_on,
             'ended_on' => $actualEnded ?? $row->planned_ended_on,
             'days' => (int) ($row->actual_days ?? $row->planned_days),
