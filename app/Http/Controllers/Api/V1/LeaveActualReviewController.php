@@ -50,7 +50,8 @@ final class LeaveActualReviewController extends Controller
                 ->whereNull('l.cancelled_at')
                 ->lockForUpdate()
                 ->first(['l.id','l.employee_id','l.leave_type_id','l.planned_started_on',
-                    'l.planned_ended_on','l.revision','l.actual_days','l.actual_review_state']);
+                    'l.planned_ended_on','l.actual_started_on','l.actual_ended_on',
+                    'l.revision','l.actual_days','l.actual_review_state']);
             abort_unless($row, 404);
             abort_unless((int) $row->revision === (int) $data['revision'], 409,
                 'The leave record changed. Reload it before reviewing actual dates.');
@@ -74,6 +75,23 @@ final class LeaveActualReviewController extends Controller
                 }
                 $days = $counter->count($company, $row->leave_type_id, $start, $end);
             }
+            // Reopening an already carried/closed entitlement would make the
+            // next year's credited balance inconsistent with verified actuals.
+            // The company lock serializes this check against concurrent carryover.
+            $years = [];
+            foreach ([$row->planned_started_on, $row->planned_ended_on,
+                $row->actual_started_on, $row->actual_ended_on, $start, $end] as $date) {
+                if ($date !== null) $years[] = (int) substr($date, 0, 4);
+            }
+            $closed = DB::table('leave_balance_periods')
+                ->where('company_id', $company)
+                ->where('employee_id', $row->employee_id)
+                ->where('leave_type_id', $row->leave_type_id)
+                ->whereIn('year', range(min($years), max($years)))
+                ->whereNotNull('closed_at')->exists();
+            abort_if($closed, 409,
+                'The entitlement year is closed. Actual leave cannot be changed after audited carryover.');
+
             $updated = DB::table('employee_leaves')->where('id', $leave)
                 ->where('revision', $row->revision)->whereNull('cancelled_at')
                 ->update([
