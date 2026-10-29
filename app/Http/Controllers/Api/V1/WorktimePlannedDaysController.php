@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Domain\Personnel\EmployeeVisibility;
 use App\Domain\Worktime\WorkforceAuthorization;
 use App\Http\Controllers\Controller;
 use Carbon\CarbonImmutable;
@@ -14,7 +13,7 @@ final class WorktimePlannedDaysController extends Controller
 {
     public function __invoke(
         Request $request, string $company,
-        WorkforceAuthorization $access, EmployeeVisibility $visibility,
+        WorkforceAuthorization $access,
     ): JsonResponse {
         abort_unless((bool) config('hrm.worktime_planning_enabled', false), 404);
         abort_unless($access->canReadPlanningTemplates($request->user(), $company), 403);
@@ -28,10 +27,11 @@ final class WorktimePlannedDaysController extends Controller
         ]);
         abort_unless(CarbonImmutable::parse($input['from'])
             ->diffInDays(CarbonImmutable::parse($input['to'])) <= 365, 422);
-        // The employee list must be authorized as a whole; never silently
-        // disclose partial results when a hidden employee ID is probed.
-        $visibleIds = $visibility->visibleFor($request->user(), $company)
-            ->whereIn('employees.id', $input['employee_ids'])->pluck('employees.id')->all();
+        // Employee roster visibility is intentionally narrower than the
+        // manager's delegated shift-planning scope. Check company membership
+        // and the ENTIRE assignment range without opening private HR fields.
+        $visibleIds = DB::table('employees')->where('company_id', $company)
+            ->whereIn('id', $input['employee_ids'])->pluck('id')->all();
         abort_unless(count($visibleIds) === count($input['employee_ids']), 404);
         if (!$access->canEditTimesheet($request->user(), $company)) {
             abort_unless($access->canPlanEmployees(
