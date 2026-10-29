@@ -239,6 +239,41 @@ final class LeaveBalanceLedgerTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_leave_request_filter_combines_current_department_year_and_employee_search(): void
+    {
+        extract($this->fixture());
+        $firstDepartment = (string) Str::uuid();
+        $secondDepartment = (string) Str::uuid();
+        $position = (string) Str::uuid();
+        DB::table('departments')->insert([
+            ['id' => $firstDepartment, 'company_id' => $company, 'name' => 'IT division'],
+            ['id' => $secondDepartment, 'company_id' => $company, 'name' => 'Accounting'],
+        ]);
+        DB::table('positions')->insert([
+            'id' => $position, 'company_id' => $company, 'name' => 'Engineer',
+        ]);
+        foreach ([[$employee, $firstDepartment], [$otherEmployee, $secondDepartment]] as [$person, $unit]) {
+            DB::table('employee_assignments')->insert([
+                'id' => (string) Str::uuid(), 'employee_id' => $person,
+                'department_id' => $unit, 'position_id' => $position, 'valid_from' => '2026-01-01',
+            ]);
+        }
+        $this->submitted($hr, $base, $employee, $ordinary, '2026-11-01', '2026-11-07');
+        $url = $base.'/leave-requests?year=2026&q=BAL-001&department_id='.$firstDepartment;
+        $this->actingAs($hr)->getJson($url)->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.employee_id', $employee);
+        $this->getJson($base.'/leave-requests?year=2026&q=BAL-001&department_id='.$secondDepartment)
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($base.'/leave-requests?year=2025&q=BAL-001&department_id='.$firstDepartment)
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($base.'/leave-requests?year=2026&q=nonexistent&department_id='.$firstDepartment)
+            ->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($base.'/leave-requests?department_id=invalid')
+            ->assertUnprocessable();
+        $this->actingAs($staff)->getJson($url)->assertForbidden();
+    }
+
     public function test_unconfigured_balance_is_null_not_a_fake_grant_and_read_is_tenant_safe(): void
     {
         extract($this->fixture());
