@@ -33,6 +33,8 @@ use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
 use App\Http\Controllers\Api\V1\WorkSchedulePatternController;
 use App\Http\Controllers\Api\V1\WorktimeCycleBulkPlanController;
 use App\Http\Controllers\Api\V1\WorktimePlannedDaysController;
+use App\Http\Controllers\Api\V1\WorktimeMatrixController;
+use App\Http\Controllers\Api\V1\WorktimeMatrixBulkController;
 use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
@@ -108,6 +110,10 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/worktime/employees/{employee}/monthly-summary', [WorktimeReadController::class, 'employeeMonth'])
             ->whereUuid('company')->whereUuid('employee');
+        Route::get('/companies/{company}/worktime/matrix', WorktimeMatrixController::class)
+            ->whereUuid('company');
+        Route::post('/companies/{company}/worktime/matrix/bulk-edit', WorktimeMatrixBulkController::class)
+            ->whereUuid('company');
         Route::get('/companies/{company}/worktime/timesheet', [WorktimeReadController::class, 'timesheet'])
             ->whereUuid('company');
         Route::get('/companies/{company}/worktime/periods', [WorktimePeriodController::class, 'show'])
