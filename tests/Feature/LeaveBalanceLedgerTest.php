@@ -200,6 +200,19 @@ final class LeaveBalanceLedgerTest extends TestCase
             'id' => $period2025->id,'closing_available_days' => 24,
         ]);
         $this->postJson($carry, [...$input, 'revision' => 2])->assertConflict();
+        // The closed 2025 snapshot and its credited 2026 transfer must not
+        // become stale if someone later attempts to change a verified no-show.
+        $this->actingAs($hr)->putJson($base.'/leaves/'.$leaveId.'/actual', [
+            'revision' => 2, 'state' => 'taken',
+            'actual_started_on' => '2025-09-01', 'actual_ended_on' => '2025-09-06',
+            'reason' => 'Late historical outcome correction must be rejected',
+        ])->assertConflict();
+        $this->assertDatabaseHas('employee_leaves', [
+            'id' => $leaveId, 'actual_review_state' => 'not_taken', 'actual_days' => 0,
+        ]);
+        $this->assertDatabaseHas('leave_balance_periods', [
+            'id' => $period2025->id,'closing_available_days' => 24,
+        ]);
         $this->assertDatabaseHas('hr_audit_events', [
             'company_id' => $company,'action' => 'leave.balance_carried',
         ]);
