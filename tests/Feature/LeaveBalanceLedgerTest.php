@@ -85,6 +85,70 @@ final class LeaveBalanceLedgerTest extends TestCase
         return $data;
     }
 
+    public function test_paged_registry_is_hr_scoped_and_separates_unverified_plan_from_actual_usage(): void
+    {
+        extract($this->fixture());
+        config()->set('hrm.leave_balance_writes_enabled', true);
+        $this->open($admin, $base, $employee, $ordinary, 2026, 24);
+        $url = $base.'/leave-balances/registry?year=2026&per_page=20';
+        $this->actingAs($staff)->getJson($url)->assertForbidden();
+        $this->actingAs($other)->getJson($url)->assertForbidden();
+        $this->actingAs($hr)->getJson($url.'&unexpected=1')->assertUnprocessable();
+        $this->getJson($url.'&department_id=bad')->assertUnprocessable();
+        $this->getJson($url.'&q=BAL-001')->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.balances.0.granted_days', 24)
+            ->assertJsonPath('data.0.balances.0.booked_days', 0)
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', 0)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', 24);
+        // An approved planned interval is not itself confirmed use.
+        $request = $this->submitted($hr, $base, $employee, $ordinary, '2026-09-01', '2026-09-10');
+        $this->actingAs($admin)->postJson($base.'/leave-requests/'.$request['id'].'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk();
+        $this->actingAs($hr)->getJson($url.'&q=BAL-001')
+            ->assertJsonPath('data.0.balances.0.booked_days', 10)
+            ->assertJsonPath('data.0.balances.0.available_days', 14)
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', null)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', null)
+            ->assertJsonPath('data.0.balances.0.actual_unverified_records', 1);
+        // Only the explicitly verified actual interval is debited in factual view.
+        DB::table('employee_leaves')->where('employee_id', $employee)->update([
+            'actual_started_on' => '2026-09-01',
+            'actual_ended_on' => '2026-09-06',
+            'actual_days' => 6,
+        ]);
+        $this->getJson($url.'&q=BAL-001')
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', 6)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', 18)
+            ->assertJsonPath('data.0.balances.0.booked_days', 10);
+        // A different company must never be able to read those employee snapshots.
+        $foreign = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $foreign, 'name' => 'Foreign organization']);
+        $this->getJson('/api/v1/companies/'.$foreign.'/leave-balances/registry?year=2026')
+            ->assertForbidden();
+    }
+
+    public function test_future_approved_plan_does_not_spend_unverified_entitlement_or_invent_a_grant(): void
+    {
+        extract($this->fixture());
+        config()->set('hrm.leave_balance_writes_enabled', true);
+        $this->open($admin, $base, $employee, $ordinary, 2027, 24);
+        $request = $this->submitted($hr, $base, $employee, $ordinary, '2027-03-01', '2027-03-14');
+        $this->actingAs($admin)->postJson($base.'/leave-requests/'.$request['id'].'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk();
+        $this->actingAs($hr)->getJson($base.'/leave-balances/registry?year=2027&q=BAL-001')
+            ->assertOk()->assertJsonPath('data.0.balances.0.booked_days', 14)
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', 0)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', 24)
+            ->assertJsonPath('data.0.balances.0.available_days', 10);
+        // Other employee with no opened period has unknown, not a fake 24-day balance.
+        $this->getJson($base.'/leave-balances/registry?year=2027&q=BAL-002')
+            ->assertJsonPath('data.0.balances.0.granted_days', null)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', null);
+    }
+
     public function test_unconfigured_balance_is_null_not_a_fake_grant_and_read_is_tenant_safe(): void
     {
         extract($this->fixture());

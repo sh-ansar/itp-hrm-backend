@@ -23,6 +23,8 @@ final class LeaveRequestController extends Controller
         $filters = $request->validate([
             'status' => ['sometimes', 'in:draft,submitted,approved,rejected,cancelled'],
             'page' => ['sometimes', 'integer', 'min:1'],
+            'year' => ['sometimes', 'integer', 'between:2000,2100'],
+            'q' => ['sometimes', 'string', 'max:120'],
         ]);
 
         $query = DB::table('leave_requests as lr')
@@ -55,6 +57,22 @@ final class LeaveRequestController extends Controller
             }
         }
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
+        if (isset($filters['year'])) {
+            $from = sprintf('%04d-01-01', (int) $filters['year']);
+            $to = sprintf('%04d-12-31', (int) $filters['year']);
+            $query->where('lr.planned_started_on', '<=', $to)
+                ->where('lr.planned_ended_on', '>=', $from);
+        }
+        if (isset($filters['q']) && trim($filters['q']) !== '') {
+            $term = '%'.trim($filters['q']).'%';
+            $operator = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($operator, $term): void {
+                $q->where('e.last_name', $operator, $term)
+                    ->orWhere('e.first_name', $operator, $term)
+                    ->orWhere('e.middle_name', $operator, $term)
+                    ->orWhere('e.personnel_number', $operator, $term);
+            });
+        }
 
         $page = $query->orderByDesc('lr.created_at')->orderBy('lr.id')->paginate(50);
         $items = $page->items();

@@ -133,6 +133,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/companies/{company}/leaves', LeaveReadController::class)
             ->whereUuid('company');
+        Route::get('/companies/{company}/leave-balances/registry', [LeaveBalanceController::class, 'registry'])
+            ->whereUuid('company');
         Route::get('/companies/{company}/leave-balances', [LeaveBalanceController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/leave-balances/periods', [LeaveBalanceController::class, 'open'])
