@@ -302,6 +302,36 @@ final class WorktimeCyclePlanningTest extends TestCase
         ]);
     }
 
+    public function test_existing_legacy_assignment_requires_explicit_replace_even_without_day_plans(): void
+    {
+        $fx = $this->fixture();
+        $this->enablePlanning();
+        $this->createPattern($fx);
+        DB::table('employee_work_schedules')->insert([
+            'id' => (string) Str::uuid(), 'employee_id' => $fx['employee'],
+            'work_schedule_id' => $fx['schedule'], 'valid_from' => '2026-01-01',
+            'valid_to' => null, 'revision' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $payload = $this->request($fx);
+        $preview = $this->actingAs($fx['admin'])->postJson($this->url($fx), $payload)
+            ->assertOk()->assertJsonPath('data.existing_plans', 0)
+            ->assertJsonPath('data.existing_assignments', 1)
+            ->assertJsonPath('meta.can_apply', false)->json();
+        $this->postJson($this->url($fx), [
+            ...$payload, 'apply' => true, 'confirm' => true,
+            'preview_token' => $preview['meta']['preview_token'],
+        ])->assertStatus(409);
+        $replace = [...$payload, 'replace_future_plans' => true];
+        $fresh = $this->postJson($this->url($fx), $replace)
+            ->assertOk()->assertJsonPath('meta.can_apply', true)->json('meta.preview_token');
+        $this->postJson($this->url($fx), [
+            ...$replace, 'apply' => true, 'confirm' => true, 'preview_token' => $fresh,
+        ])->assertOk();
+        $this->assertDatabaseCount('employee_work_schedules', 3);
+        $this->assertDatabaseCount('employee_work_plans', 8);
+    }
+
     public function test_future_replacement_splits_assignment_but_preserves_outside_days(): void
     {
         $fx = $this->fixture();

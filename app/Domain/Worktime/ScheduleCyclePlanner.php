@@ -126,13 +126,16 @@ final class ScheduleCyclePlanner
                 'missing_calendar' => 0, 'outside_employment' => 0,
                 'locked_days' => 0, 'recorded_actual' => 0,
                 'overlapping_leave' => 0, 'overlapping_absence' => 0,
-                'existing_plans' => 0, 'new_days' => 0,
+                'existing_plans' => 0, 'existing_assignments' => 0, 'new_days' => 0,
             ];
             $candidates = [];
             $signature = [];
             $sample = [];
             $cycleLen = count($days);
             foreach ($ids as $employeeId) {
+                if (($oldAssignments->get($employeeId) ?? collect())->isNotEmpty()) {
+                    $counts['existing_assignments']++;
+                }
                 $rows = $employment->get($employeeId) ?? collect();
                 foreach ($dates as $index => $date) {
                     $calendarDay = $calendar->get($date);
@@ -229,7 +232,7 @@ final class ScheduleCyclePlanner
             $blockers = $counts['missing_calendar'] + $counts['outside_employment']
                 + $counts['locked_days'] + $counts['recorded_actual']
                 + $counts['overlapping_leave'] + $counts['overlapping_absence']
-                + (!$replace ? $counts['existing_plans'] : 0);
+                + (!$replace ? $counts['existing_plans'] + $counts['existing_assignments'] : 0);
             if ($apply) {
                 abort_unless($blockers === 0, 409, 'Resolve planning conflicts before saving.');
                 abort_unless(hash_equals($previewToken, (string) ($input['preview_token'] ?? '')), 409,
