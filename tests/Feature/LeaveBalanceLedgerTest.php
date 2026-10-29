@@ -149,6 +149,38 @@ final class LeaveBalanceLedgerTest extends TestCase
             ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', null);
     }
 
+    public function test_verified_actual_overrun_reserves_extra_days_without_erasing_original_booking(): void
+    {
+        extract($this->fixture());
+        config()->set('hrm.leave_balance_writes_enabled', true);
+        $this->open($admin, $base, $employee, $ordinary, 2025, 24);
+        $first = $this->submitted($hr, $base, $employee, $ordinary, '2025-08-01', '2025-08-14');
+        $this->actingAs($admin)->postJson($base.'/leave-requests/'.$first['id'].'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk();
+        $leave = DB::table('employee_leaves')->where('employee_id', $employee)->first();
+        $this->actingAs($hr)->putJson($base.'/leaves/'.$leave->id.'/actual', [
+            'revision' => $leave->revision, 'state' => 'taken',
+            'actual_started_on' => '2025-08-01', 'actual_ended_on' => '2025-08-20',
+            'reason' => 'Verified extended actual leave by HR payroll records',
+        ])->assertOk()->assertJsonPath('data.actual_days', 20);
+        $this->actingAs($admin)->getJson($base.'/leave-balances?year=2025&employee_id='.$employee)
+            ->assertOk()
+            ->assertJsonPath('data.0.granted_days', 24)
+            ->assertJsonPath('data.0.booked_days', 14)
+            ->assertJsonPath('data.0.actual_over_plan_days', 6)
+            ->assertJsonPath('data.0.available_days', 4);
+        $this->getJson($base.'/leave-balances/registry?year=2025&q=BAL-001')
+            ->assertOk()
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', 20)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', 4);
+        $second = $this->submitted($hr, $base, $employee, $ordinary, '2025-10-01', '2025-10-10');
+        $this->actingAs($admin)->postJson($base.'/leave-requests/'.$second['id'].'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('employee_leaves', 1);
+    }
+
     public function test_audited_no_show_allows_full_unused_historical_carry_without_faking_fact(): void
     {
         extract($this->fixture());

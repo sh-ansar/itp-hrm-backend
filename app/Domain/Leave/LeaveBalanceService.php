@@ -38,8 +38,18 @@ final class LeaveBalanceService
         $to = sprintf('%04d-12-31', $year);
         $bookedPeriods = DB::table('employee_leaves')->whereNull('cancelled_at')
             ->where('employee_id', $employee)->where('leave_type_id', $type->id)
-            ->where('planned_started_on', '<=', $to)->where('planned_ended_on', '>=', $from)
-            ->get(['planned_started_on', 'planned_ended_on', 'planned_days']);
+            ->where(function ($range) use ($from, $to): void {
+                $range->where(function ($planned) use ($from, $to): void {
+                    $planned->where('planned_started_on', '<=', $to)
+                        ->where('planned_ended_on', '>=', $from);
+                })->orWhere(function ($actual) use ($from, $to): void {
+                    $actual->whereNotNull('actual_started_on')
+                        ->where('actual_started_on', '<=', $to)
+                        ->where('actual_ended_on', '>=', $from);
+                });
+            })
+            ->get(['planned_started_on', 'planned_ended_on', 'planned_days',
+                'actual_started_on', 'actual_ended_on', 'actual_days']);
         $pendingPeriods = DB::table('leave_requests')
             ->where('company_id', $company)->where('employee_id', $employee)
             ->where('leave_type_id', $type->id)->where('status', 'submitted')
@@ -51,11 +61,34 @@ final class LeaveBalanceService
         $configured = $period !== null;
         $closed = $configured && $period->closed_at !== null;
         $policyValid = in_array($type->balance_method, ['calendar_days', 'working_days'], true);
+        // Approved plan remains in booked_days. If verified actual absence
+        // exceeds it, also reserve those excess days before new approvals.
+        // Missing or future actuals never become an invented completed fact.
+        $actualOverPlan = $policyValid ? 0 : null;
+        if ($policyValid) {
+            $today = now()->toDateString();
+            foreach ($bookedPeriods as $record) {
+                if ($record->actual_started_on === null || $record->actual_ended_on === null
+                    || $record->actual_days === null || $record->actual_ended_on > $today) continue;
+                $plannedSlice = $this->sliceDays($company, (string) $type->balance_method, $year,
+                    (string) $record->planned_started_on, (string) $record->planned_ended_on,
+                    (int) $record->planned_days);
+                $actualSlice = $this->sliceDays($company, (string) $type->balance_method, $year,
+                    (string) $record->actual_started_on, (string) $record->actual_ended_on,
+                    (int) $record->actual_days);
+                if ($plannedSlice === null || $actualSlice === null) {
+                    $actualOverPlan = null;
+                    break;
+                }
+                $actualOverPlan += max(0, $actualSlice - $plannedSlice);
+            }
+        }
         // "Available" means newly bookable days. A closed year cannot be
         // booked again, even though its historical closing snapshot stays auditable.
-        $available = $closed ? 0 : ($configured && $policyValid && $booked !== null && $pending !== null
+        $available = $closed ? 0 : ($configured && $policyValid && $booked !== null
+            && $pending !== null && $actualOverPlan !== null
             ? (int) $period->granted_days + (int) $period->carried_days
-                + (int) $period->adjustment_days - $booked
+                + (int) $period->adjustment_days - $booked - $actualOverPlan
             : null);
         $carriedOut = $closed ? (int) (DB::table('leave_balance_periods')
             ->where('carry_from_period_id', $period->id)->value('carried_days') ?? 0) : null;
@@ -72,6 +105,7 @@ final class LeaveBalanceService
             'carried_days' => $configured ? (int) $period->carried_days : null,
             'adjustment_days' => $configured ? (int) $period->adjustment_days : null,
             'booked_days' => $booked,
+            'actual_over_plan_days' => $actualOverPlan,
             'pending_days' => $pending,
             'available_days' => $available,
             // Snapshot at the moment of closure (not new spendable days).
@@ -80,7 +114,7 @@ final class LeaveBalanceService
             'state' => ! $configured ? 'unconfigured'
                 : ($closed ? 'closed'
                     : (! $policyValid ? 'policy_missing'
-                        : ($booked === null || $pending === null ? 'calendar_incomplete' : 'open'))),
+                        : ($booked === null || $pending === null || $actualOverPlan === null ? 'calendar_incomplete' : 'open'))),
             'revision' => $configured ? (int) $period->revision : null,
             'carry_from_period_id' => $period?->carry_from_period_id,
             'closed_at' => $period?->closed_at,
