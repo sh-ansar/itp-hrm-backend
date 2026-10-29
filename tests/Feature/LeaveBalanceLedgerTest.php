@@ -374,12 +374,20 @@ final class LeaveBalanceLedgerTest extends TestCase
     {
         extract($this->fixture());
         config()->set('hrm.leave_balance_writes_enabled', true);
-        $source = $this->open($admin, $base, $employee, $ordinary, 2026, 14);
-        $target = $this->open($admin, $base, $employee, $ordinary, 2027, 10);
-        $first = $this->submitted($hr, $base, $employee, $ordinary, '2026-05-01', '2026-05-06');
+        $source = $this->open($admin, $base, $employee, $ordinary, 2025, 14);
+        $target = $this->open($admin, $base, $employee, $ordinary, 2026, 10);
+        $first = $this->submitted($hr, $base, $employee, $ordinary, '2025-05-01', '2025-05-06');
         $this->actingAs($admin)->postJson($base.'/leave-requests/'.$first['id'].'/decision', [
             'revision' => 2, 'decision' => 'approved',
         ])->assertOk();
+        // Historical leave actual must be verified before carrying the 8 unused days.
+        $record = DB::table('employee_leaves')->where('employee_id', $employee)->first();
+        $this->actingAs($hr)->putJson($base.'/leaves/'.$record->id.'/actual', [
+            'revision' => 1, 'state' => 'taken',
+            'actual_started_on' => '2025-05-01', 'actual_ended_on' => '2025-05-06',
+            'reason' => 'Verified historical leave attendance by HR',
+        ])->assertOk()->assertJsonPath('data.actual_days', 6);
+        $this->actingAs($admin);
         $url = $base.'/leave-balances/periods/'.$target['id'].'/carryover';
         $payload = [
             'revision' => 1, 'source_period_id' => $source['id'],
@@ -398,12 +406,12 @@ final class LeaveBalanceLedgerTest extends TestCase
         ]);
         // A closed year is archived, not still spendable. The verified
         // closing amount is retained separately from transferred days.
-        $this->actingAs($staff)->getJson($base.'/me/leave-balances?year=2026')
+        $this->actingAs($staff)->getJson($base.'/me/leave-balances?year=2025')
             ->assertJsonPath('data.0.state', 'closed')
             ->assertJsonPath('data.0.available_days', 0)
             ->assertJsonPath('data.0.closing_available_days', 8)
             ->assertJsonPath('data.0.carried_out_days', 6);
-        $this->getJson($base.'/me/leave-balances?year=2027')
+        $this->getJson($base.'/me/leave-balances?year=2026')
             ->assertJsonPath('data.0.available_days', 16)
             ->assertJsonPath('data.0.closing_available_days', null)
             ->assertJsonPath('data.0.carried_out_days', null);
@@ -411,7 +419,7 @@ final class LeaveBalanceLedgerTest extends TestCase
         $this->postJson($base.'/leave-balances/periods/'.$source['id'].'/adjust', [
             'revision' => 2, 'delta_days' => 1, 'reason' => 'Late adjustment forbidden',
         ])->assertConflict();
-        $second = $this->submitted($hr, $base, $employee, $ordinary, '2026-10-01', '2026-10-02');
+        $second = $this->submitted($hr, $base, $employee, $ordinary, '2025-10-01', '2025-10-02');
         $this->actingAs($admin)->postJson($base.'/leave-requests/'.$second['id'].'/decision', [
             'revision' => 2, 'decision' => 'approved',
         ])->assertConflict();
