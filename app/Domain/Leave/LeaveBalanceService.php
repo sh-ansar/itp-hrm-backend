@@ -110,10 +110,11 @@ final class LeaveBalanceService
                         ->where('actual_ended_on', '>=', $first);
                 });
             })->get(['planned_started_on','planned_ended_on',
-                'actual_started_on','actual_ended_on','actual_days']);
+                'actual_started_on','actual_ended_on','actual_days','actual_review_state']);
         $actual = 0;
         $unverified = 0;
         foreach ($records as $record) {
+            if ($record->actual_review_state === 'not_taken') continue;
             if ($record->actual_started_on === null || $record->actual_ended_on === null
                 || $record->actual_days === null) {
                 if ($record->planned_started_on <= $today && $record->planned_ended_on <= $today) {
