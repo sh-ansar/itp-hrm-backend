@@ -90,7 +90,7 @@ final class LeaveActualReviewController extends Controller
                 ->whereIn('year', range(min($years), max($years)))
                 ->whereNotNull('closed_at')->exists();
             abort_if($closed, 409,
-                'The entitlement year is closed. Reopen it through a reviewed ledger correction before changing actual leave.');
+                'The entitlement year is closed. Actual leave cannot be changed after audited carryover.');
 
             $updated = DB::table('employee_leaves')->where('id', $leave)
                 ->where('revision', $row->revision)->whereNull('cancelled_at')
