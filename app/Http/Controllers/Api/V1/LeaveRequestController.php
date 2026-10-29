@@ -25,6 +25,7 @@ final class LeaveRequestController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'year' => ['sometimes', 'integer', 'between:2000,2100'],
             'q' => ['sometimes', 'string', 'max:120'],
+            'department_id' => ['sometimes', 'uuid'],
         ]);
 
         $query = DB::table('leave_requests as lr')
@@ -71,6 +72,22 @@ final class LeaveRequestController extends Controller
                     ->orWhere('e.first_name', $operator, $term)
                     ->orWhere('e.middle_name', $operator, $term)
                     ->orWhere('e.personnel_number', $operator, $term);
+            });
+        }
+
+        if (isset($filters['department_id'])) {
+            $department = $filters['department_id'];
+            $today = now()->toDateString();
+            // Current assignment is authoritative for this HR filter. A scoped
+            // manager can only narrow the already permission-filtered set.
+            $query->whereExists(function ($sub) use ($company, $department, $today): void {
+                $sub->selectRaw('1')->from('employee_assignments as a')
+                    ->join('departments as d', 'd.id', '=', 'a.department_id')
+                    ->whereColumn('a.employee_id', 'e.id')->where('d.company_id', $company)
+                    ->where('a.department_id', $department)->where('a.valid_from', '<=', $today)
+                    ->where(function ($dates) use ($today): void {
+                        $dates->whereNull('a.valid_to')->orWhere('a.valid_to', '>=', $today);
+                    });
             });
         }
 
