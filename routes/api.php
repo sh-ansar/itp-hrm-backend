@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
 use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
+use App\Http\Controllers\Api\V1\LeaveActualReviewController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
 use App\Http\Controllers\Api\V1\ProtectedLeaveEvidenceController;
 use App\Http\Controllers\Api\V1\LeaveTypeController;
@@ -131,6 +132,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/companies/{company}/worktime/absences', [WorktimeReadController::class, 'absences'])
             ->whereUuid('company');
 
+        Route::put('/companies/{company}/leaves/{leave}/actual', [LeaveActualReviewController::class, 'update'])
+            ->whereUuid('company')->whereUuid('leave');
         Route::get('/companies/{company}/leaves', LeaveReadController::class)
             ->whereUuid('company');
         Route::get('/companies/{company}/leave-balances/registry', [LeaveBalanceController::class, 'registry'])
