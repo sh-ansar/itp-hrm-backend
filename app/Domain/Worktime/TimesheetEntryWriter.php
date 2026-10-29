@@ -56,6 +56,10 @@ final class TimesheetEntryWriter
                 ]);
             }
 
+            $plannedDays = DB::table('employee_work_plans')->where('company_id', $companyId)
+                ->where('employee_id', $employeeId)->whereIn('work_date', $dates)
+                ->get(['work_date', 'planned_minutes'])->keyBy('work_date');
+
             $existing = DB::table('worktime_entries')
                 ->where('employee_id', $employeeId)
                 ->whereIn('work_date', $dates)
@@ -71,7 +75,8 @@ final class TimesheetEntryWriter
                 }
 
                 $calendarDay = $calendar->get($day['date']);
-                $planned = $calendarDay->planned_minutes !== null ? (int) $calendarDay->planned_minutes : 0;
+                $planned = $plannedDays->get($day['date'])?->planned_minutes
+                    ?? ($calendarDay->planned_minutes !== null ? (int) $calendarDay->planned_minutes : 0);
                 $absence = (int) ($day['absence_minutes'] ?? 0);
                 if ($absence > $planned && $planned > 0) {
                     throw ValidationException::withMessages([
@@ -91,7 +96,8 @@ final class TimesheetEntryWriter
                 $current = $existing->get($day['date']);
                 $calendarDay = $calendar->get($day['date']);
                 $values = [
-                    'planned_minutes' => $calendarDay->planned_minutes !== null ? (int) $calendarDay->planned_minutes : 0,
+                    'planned_minutes' => $plannedDays->get($day['date'])?->planned_minutes
+                        ?? ($calendarDay->planned_minutes !== null ? (int) $calendarDay->planned_minutes : 0),
                     'worked_minutes' => $day['worked_minutes'],
                     'absence_minutes' => $day['absence_minutes'],
                     'overtime_minutes' => $day['overtime_minutes'],
@@ -151,19 +157,24 @@ final class TimesheetEntryWriter
             ->get()
             ->keyBy('work_date');
 
+        $plannedDays = DB::table('employee_work_plans')->where('company_id', $companyId)
+            ->where('employee_id', $employeeId)->whereBetween('work_date', [$from, $to])
+            ->get(['work_date', 'planned_minutes'])->keyBy('work_date');
+
         return DB::table('production_calendar_days')
             ->where('company_id', $companyId)
             ->whereBetween('work_date', [$from, $to])
             ->select('work_date', 'day_type', 'planned_minutes', 'label')
             ->orderBy('work_date')
             ->get()
-            ->map(static function (object $calendar) use ($entries): array {
+            ->map(static function (object $calendar) use ($entries, $plannedDays): array {
                 $entry = $entries->get($calendar->work_date);
                 return [
                     'date' => $calendar->work_date,
                     'day_type' => $calendar->day_type,
                     'label' => $calendar->label,
-                    'planned_minutes' => $calendar->planned_minutes !== null ? (int) $calendar->planned_minutes : 0,
+                    'planned_minutes' => $plannedDays->get($calendar->work_date)?->planned_minutes
+                        ?? ($calendar->planned_minutes !== null ? (int) $calendar->planned_minutes : 0),
                     'worked_minutes' => $entry?->worked_minutes !== null ? (int) $entry->worked_minutes : null,
                     'absence_minutes' => $entry?->absence_minutes !== null ? (int) $entry->absence_minutes : null,
                     'overtime_minutes' => $entry?->overtime_minutes !== null ? (int) $entry->overtime_minutes : null,

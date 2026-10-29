@@ -30,6 +30,9 @@ use App\Http\Controllers\Api\V1\WorktimeTimesheetWriteController;
 use App\Http\Controllers\Api\V1\WorktimeBulkFillController;
 use App\Http\Controllers\Api\V1\WorktimePeriodController;
 use App\Http\Controllers\Api\V1\WorkScheduleWriteController;
+use App\Http\Controllers\Api\V1\WorkSchedulePatternController;
+use App\Http\Controllers\Api\V1\WorktimeCycleBulkPlanController;
+use App\Http\Controllers\Api\V1\WorktimePlannedDaysController;
 use App\Http\Controllers\Api\V1\UserPreferencesController;
 use App\Http\Controllers\Api\V1\ProductionCalendarWriteController;
 use App\Http\Controllers\Api\V1\LeaveReadController;
@@ -125,6 +128,16 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')->whereUuid('schedule');
         Route::put('/companies/{company}/worktime/schedules/{schedule}/employees/{employee}', [WorkScheduleWriteController::class, 'assign'])
             ->whereUuid('company')->whereUuid('schedule')->whereUuid('employee');
+        Route::get('/companies/{company}/worktime/plans', WorktimePlannedDaysController::class)
+            ->whereUuid('company');
+        Route::get('/companies/{company}/worktime/schedule-templates', [WorkSchedulePatternController::class, 'index'])
+            ->whereUuid('company');
+        Route::get('/companies/{company}/worktime/schedules/{schedule}/pattern', [WorkSchedulePatternController::class, 'show'])
+            ->whereUuid('company')->whereUuid('schedule');
+        Route::put('/companies/{company}/worktime/schedules/{schedule}/pattern', [WorkSchedulePatternController::class, 'update'])
+            ->whereUuid('company')->whereUuid('schedule');
+        Route::post('/companies/{company}/worktime/schedules/{schedule}/bulk-plan', WorktimeCycleBulkPlanController::class)
+            ->whereUuid('company')->whereUuid('schedule');
         Route::get('/companies/{company}/worktime/calendar', [WorktimeReadController::class, 'calendar'])
             ->whereUuid('company');
         Route::put('/companies/{company}/worktime/calendar', ProductionCalendarWriteController::class)

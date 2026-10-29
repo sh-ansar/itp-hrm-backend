@@ -77,6 +77,14 @@ final class BulkTimesheetFill
                 ->get(['ews.employee_id', 'ews.valid_from', 'ews.valid_to', 'ws.schedule_type'])
                 ->groupBy('employee_id');
 
+            // Planned shifts override the generic office calendar for that employee.
+            // A holiday may be a working shift, while a weekday may be a rest day.
+            $verifiedPlans = DB::table('employee_work_plans')
+                ->where('company_id', $company)->whereIn('employee_id', $employeeIds)
+                ->whereIn('work_date', $dates)
+                ->get(['employee_id', 'work_date', 'planned_minutes', 'day_kind', 'revision'])
+                ->keyBy(fn (object $row): string => $row->employee_id.'|'.$row->work_date);
+
             $leaves = DB::table('employee_leaves')->whereIn('employee_id', $employeeIds)
                 ->whereNull('cancelled_at')->where('planned_started_on', '<=', $to)
                 ->where('planned_ended_on', '>=', $from)
@@ -112,8 +120,11 @@ final class BulkTimesheetFill
                         continue;
                     }
                     $day = $calendar->get($date);
-                    $planned = (int) ($day->planned_minutes ?? 0);
-                    if (!in_array($day->day_type, ['workday', 'shortened'], true) || $planned <= 0) {
+                    $verified = $verifiedPlans->get($employeeId.'|'.$date);
+                    $planned = $verified !== null ? (int) $verified->planned_minutes
+                        : (int) ($day->planned_minutes ?? 0);
+                    if ($planned <= 0 || ($verified === null
+                        && !in_array($day->day_type, ['workday', 'shortened'], true))) {
                         $counts['nonworking_date']++;
                         continue;
                     }
@@ -134,7 +145,8 @@ final class BulkTimesheetFill
                     // eligible. Unknown rotations or contradictory overlaps do not.
                     if ($daySchedules->count() > 1
                         || ($daySchedules->count() === 1
-                            && $daySchedules->first()->schedule_type !== 'standard')) {
+                            && $daySchedules->first()->schedule_type !== 'standard'
+                            && $verified === null)) {
                         $counts['unknown_shift_schedule']++;
                         continue;
                     }
@@ -159,7 +171,8 @@ final class BulkTimesheetFill
                         continue;
                     }
                     $counts['candidate_count']++;
-                    $candidates[] = $employeeId.'|'.$date.'|'.$planned;
+                    $candidates[] = $employeeId.'|'.$date.'|'.$planned.'|'
+                        .($verified?->revision ?? 'legacy');
                     if (!$apply) continue;
                     $now = now();
                     $rows[] = [

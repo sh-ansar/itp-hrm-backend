@@ -257,6 +257,7 @@ final class WorktimeReadController extends Controller
                 'total' => $rows->count(),
                 'worktime_writes_enabled' => (bool) config('hrm.worktime_writes_enabled', false),
                 'can_manage_schedules' => $permissions->canEditTimesheet($request->user(), $company),
+                'can_plan_schedules' => $permissions->canReadPlanningTemplates($request->user(), $company),
             ],
         ]);
     }
