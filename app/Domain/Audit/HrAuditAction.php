@@ -64,6 +64,7 @@ enum HrAuditAction: string
     case WorkScheduleUpdated = 'worktime.schedule_updated';
     case WorkScheduleAssigned = 'worktime.schedule_assigned';
     case LeaveRecordsListed = 'leave.records_listed';
+    case LeaveActualReviewed = 'leave.actual_reviewed';
     case LeaveTypeCreated = 'leave.type_created';
     case LeaveRequestCreated = 'leave.request_created';
     case LeaveRequestUpdated = 'leave.request_updated';

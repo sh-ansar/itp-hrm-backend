@@ -271,16 +271,36 @@ final class LeaveBalanceController extends Controller
                     'days' => 'Review or cancel all pending prior-year requests before closing the year.',
                 ]);
             }
-            if ($prior['available_days'] < $days) {
+            $carryLimit = $prior['available_days'];
+            // When an approved plan was never used, it still reserves days in
+            // the approval ledger; a reviewed no-show restores the factual
+            // unused entitlement ONLY for a fully elapsed historical year.
+            if (($prior['booked_days'] ?? 0) > 0) {
+                if ((int) $source->year >= (int) now()->year) {
+                    throw ValidationException::withMessages([
+                        'source_period_id' => 'A year with approved bookings must end before factual carryover.',
+                    ]);
+                }
+                $actual = $balances->actualUsage($company, $source->employee_id, $type,
+                    (int) $source->year, $prior);
+                if ($actual['actual_unverified_records'] > 0
+                    || $actual['unspent_entitlement_days'] === null) {
+                    throw ValidationException::withMessages([
+                        'source_period_id' => 'Review all historical actual leave outcomes before carrying unused days.',
+                    ]);
+                }
+                $carryLimit = $actual['unspent_entitlement_days'];
+            }
+            if ($carryLimit === null || $carryLimit < $days) {
                 throw ValidationException::withMessages([
-                    'days' => 'Cannot carry more days than the verified previous-year balance.',
+                    'days' => 'Cannot carry more days than the verified unused previous-year balance.',
                 ]);
             }
 
             // Closing the prior year and crediting the target are atomic.
             $closed = DB::table('leave_balance_periods')->where('id', $source->id)
                 ->where('revision', $source->revision)->whereNull('closed_at')
-                ->update(['closed_at' => now(), 'closing_available_days' => $prior['available_days'],
+                ->update(['closed_at' => now(), 'closing_available_days' => $carryLimit,
                     'revision' => (int) $source->revision + 1, 'updated_at' => now()]);
             abort_unless($closed === 1, 409);
             $updated = DB::table('leave_balance_periods')->where('id', $target->id)
