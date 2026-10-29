@@ -32,10 +32,8 @@ final class WorktimeMatrixAuthorization
     {
         if (!config('hrm.worktime_matrix_enabled', false)
             || !config('hrm.worktime_writes_enabled', false)) return false;
-        $role = $this->role($actor, $company);
-        return in_array($role, ['company_admin', 'hr_specialist'], true)
-            || ($role === 'department_manager'
-                && config('hrm.worktime_manager_entry_enabled', false));
+        // Shift planning for managers is separate from factual attendance input.
+        return in_array($this->role($actor, $company), ['company_admin', 'hr_specialist'], true);
     }
 
     public function visibleEmployees(User $actor, string $company, string $from, string $to): Builder

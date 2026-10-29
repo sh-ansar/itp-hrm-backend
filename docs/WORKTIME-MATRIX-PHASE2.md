@@ -34,10 +34,17 @@ Stacked on Phase 1 schedule-pattern planning, not a standalone production patch.
   submitted month in a cross-month selection **blocks the entire operation**.
   Recorded leave and absence are skipped and reported. Missing calendar,
   ambiguous employment and conflicting existing records are blockers.
-- Write permissions: company admins / HR; manager only with
-  `HRM_WORKTIME_MANAGER_ENTRY_ENABLED=true` and period-wide scope. No employee
-  company-wide read, no salary, bank, payroll, private leave details or family
-  information in the matrix response.
+- **Direct HR attendance, no approval:** company admins and HR specialists
+  enter and correct actual worktime without submit/approve/reopen actions.
+  Department managers can READ authorized team worktime and plan future team
+  schedules but **cannot post actual hours**, even when the obsolete
+  `HRM_WORKTIME_MANAGER_ENTRY_ENABLED` variable is set.
+  The legacy period approval API is retained for compatibility only; the
+  normal rollout keeps `HRM_WORKTIME_PERIOD_APPROVALS_ENABLED=false` and
+  the approval widget is removed from Timesheets. Previously submitted or
+  approved periods remain immutable and visibly marked read-only.
+  There is no company-wide employee access, salary, bank, payroll, protected
+  leave details or family information in the matrix response.
 - The globally shared private employee registry remains **direct-scope only**
   (do not grant descendants automatically on HR person cards). The schedule
   planner's own read endpoint authorizes descendants independently.

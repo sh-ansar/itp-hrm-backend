@@ -141,7 +141,7 @@ final class WorktimeMatrixTest extends TestCase
             ->assertJsonPath('meta.total', 2)->assertJsonPath('data.rows.0.employee_id', $fx['stranger']);
     }
 
-    public function test_manager_see_nested_department_but_cannot_write_without_flag(): void
+    public function test_manager_sees_team_matrix_but_cannot_post_actual_hours_even_with_legacy_flag(): void
     {
         $fx = $this->fixture();
         $this->actingAs($fx['manager'])->getJson($this->matrix($fx))
@@ -150,8 +150,9 @@ final class WorktimeMatrixTest extends TestCase
             ->assertJsonPath('meta.can_edit', false);
         $this->postJson($this->bulk($fx), $this->payload($fx))->assertForbidden();
         config()->set('hrm.worktime_manager_entry_enabled', true);
-        $this->postJson($this->bulk($fx), $this->payload($fx))
-            ->assertOk()->assertJsonPath('data.candidate_count', 4);
+        $this->getJson($this->matrix($fx))->assertOk()
+            ->assertJsonPath('meta.can_edit', false);
+        $this->postJson($this->bulk($fx), $this->payload($fx))->assertForbidden();
         $this->postJson($this->bulk($fx), $this->payload($fx, [
             'employee_ids' => [$fx['employee'], $fx['stranger']],
         ]))->assertForbidden();

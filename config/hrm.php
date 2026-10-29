@@ -28,8 +28,9 @@ return [
     'worktime_matrix_enabled' => (bool) env('HRM_WORKTIME_MATRIX_ENABLED', false),
     // Managers can plan only staff in their active department scope and descendants.
     'worktime_manager_planning_enabled' => (bool) env('HRM_WORKTIME_MANAGER_PLANNING_ENABLED', false),
-    // Scoped, opt-in daily timesheet entry by managers for their own departments.
+    // Legacy environment key retained for compatibility; factual attendance is HR/admin-only.
     'worktime_manager_entry_enabled' => (bool) env('HRM_WORKTIME_MANAGER_ENTRY_ENABLED', false),
+    // Legacy approval routes stay disabled for direct HR entry (default OFF).
     'worktime_period_approvals_enabled' => (bool) env('HRM_WORKTIME_PERIOD_APPROVALS_ENABLED', false),
 
     // Leave mutations are not released with the first read-only leave contract.
