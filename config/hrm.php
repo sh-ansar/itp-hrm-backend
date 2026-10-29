@@ -22,6 +22,10 @@ return [
     'worktime_writes_enabled' => (bool) env('HRM_WORKTIME_WRITES_ENABLED', false),
     // Separate gate for transactional, create-only bulk attendance operations.
     'worktime_bulk_fill_enabled' => (bool) env('HRM_WORKTIME_BULK_FILL_ENABLED', false),
+    // Future schedule patterns + year-long day plans. Disabled until isolated QA.
+    'worktime_planning_enabled' => (bool) env('HRM_WORKTIME_PLANNING_ENABLED', false),
+    // Managers can plan only staff in their active department scope and descendants.
+    'worktime_manager_planning_enabled' => (bool) env('HRM_WORKTIME_MANAGER_PLANNING_ENABLED', false),
     // Scoped, opt-in daily timesheet entry by managers for their own departments.
     'worktime_manager_entry_enabled' => (bool) env('HRM_WORKTIME_MANAGER_ENTRY_ENABLED', false),
     'worktime_period_approvals_enabled' => (bool) env('HRM_WORKTIME_PERIOD_APPROVALS_ENABLED', false),
