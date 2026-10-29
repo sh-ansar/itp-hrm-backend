@@ -149,6 +149,96 @@ final class LeaveBalanceLedgerTest extends TestCase
             ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', null);
     }
 
+    public function test_audited_no_show_allows_full_unused_historical_carry_without_faking_fact(): void
+    {
+        extract($this->fixture());
+        config()->set('hrm.leave_balance_writes_enabled', true);
+        $this->open($admin, $base, $employee, $ordinary, 2025, 24);
+        $this->open($admin, $base, $employee, $ordinary, 2026, 24);
+        $planned = $this->submitted($hr, $base, $employee, $ordinary,
+            '2025-09-01', '2025-09-14');
+        $this->actingAs($admin)->postJson($base.'/leave-requests/'.$planned['id'].'/decision', [
+            'revision' => 2, 'decision' => 'approved',
+        ])->assertOk();
+        $leaveId = DB::table('employee_leaves')->where('employee_id',$employee)->value('id');
+        $this->actingAs($hr)->getJson($base.'/leave-balances/registry?year=2025&q=BAL-001')
+            ->assertJsonPath('data.0.balances.0.booked_days', 14)
+            ->assertJsonPath('data.0.balances.0.actual_verified_days', null);
+        $period2026 = DB::table('leave_balance_periods')
+            ->where('employee_id',$employee)->where('year',2026)->first();
+        $period2025 = DB::table('leave_balance_periods')
+            ->where('employee_id',$employee)->where('year',2025)->first();
+        $carry = $base.'/leave-balances/periods/'.$period2026->id.'/carryover';
+        $input = ['revision' => $period2026->revision, 'source_period_id' => $period2025->id,
+            'days' => 24, 'reason' => 'Reviewed unused 2025 annual balance'];
+        $this->actingAs($admin)->postJson($carry, $input)->assertUnprocessable();
+
+        $url = $base.'/leaves/'.$leaveId.'/actual';
+        $payload = ['revision' => 1, 'state' => 'not_taken',
+            'reason' => 'HR confirmed employee did not take the planned days'];
+        $this->actingAs($staff)->putJson($url, $payload)->assertForbidden();
+        $this->actingAs($hr)->putJson($url, [
+            ...$payload, 'actual_started_on' => '2025-09-01',
+        ])->assertUnprocessable();
+        $this->putJson($url, [...$payload, 'revision' => 200])->assertConflict();
+        $this->putJson($url, $payload)->assertOk()
+            ->assertJsonPath('data.actual_review_state', 'not_taken')
+            ->assertJsonPath('data.actual_days', 0)
+            ->assertJsonPath('data.revision', 2);
+        $this->assertDatabaseHas('hr_audit_events', [
+            'company_id' => $company, 'action' => 'leave.actual_reviewed',
+        ]);
+        $this->getJson($base.'/leave-balances/registry?year=2025&q=BAL-001')
+            ->assertOk()->assertJsonPath('data.0.balances.0.actual_verified_days', 0)
+            ->assertJsonPath('data.0.balances.0.unspent_entitlement_days', 24)
+            ->assertJsonPath('data.0.balances.0.booked_days', 14);
+
+        $this->actingAs($admin)->postJson($carry, $input)->assertOk()
+            ->assertJsonPath('data.carried_days', 24)
+            ->assertJsonPath('data.available_days', 48);
+        $this->assertDatabaseHas('leave_balance_periods', [
+            'id' => $period2025->id,'closing_available_days' => 24,
+        ]);
+        $this->postJson($carry, [...$input, 'revision' => 2])->assertConflict();
+        $this->assertDatabaseHas('hr_audit_events', [
+            'company_id' => $company,'action' => 'leave.balance_carried',
+        ]);
+    }
+
+    public function test_actual_date_review_is_revisioned_scoped_and_never_future(): void
+    {
+        extract($this->fixture());
+        $this->actingAs($hr);
+        DB::table('employee_leaves')->insert([
+            'id' => $id = (string) Str::uuid(),
+            'employee_id' => $employee, 'leave_type_id' => $ordinary,
+            'planned_started_on' => '2025-09-01','planned_ended_on' => '2025-09-14',
+            'planned_days' => 14,'revision' => 1,
+        ]);
+        $url = $base.'/leaves/'.$id.'/actual';
+        $this->putJson($url, ['revision' => 1,'state' => 'taken',
+            'actual_started_on' => '2027-01-01','actual_ended_on' => '2027-01-10',
+            'reason' => 'Confirmed reviewed leave period'])->assertUnprocessable();
+        $this->putJson($url, ['revision' => 1,'state' => 'taken',
+            'actual_started_on' => '2025-09-02','actual_ended_on' => '2025-09-09',
+            'reason' => 'Confirmed actual leave dates by HR'])->assertOk()
+            ->assertJsonPath('data.actual_days', 8)
+            ->assertJsonPath('data.actual_review_state', 'taken');
+        $this->putJson($url, ['revision' => 1,'state' => 'not_taken',
+            'reason' => 'Old version cannot overwrite confirmed facts'])->assertConflict();
+        $this->assertDatabaseHas('employee_leaves', [
+            'id' => $id,'actual_days' => 8,
+            'actual_started_on' => '2025-09-02',
+            'actual_ended_on' => '2025-09-09',
+        ]);
+        $another = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $another,'name' => 'Other']);
+        $this->putJson('/api/v1/companies/'.$another.'/leaves/'.$id.'/actual', [
+            'revision' => 2,'state' => 'not_taken',
+            'reason' => 'Cannot alter across company boundaries',
+        ])->assertForbidden();
+    }
+
     public function test_unconfigured_balance_is_null_not_a_fake_grant_and_read_is_tenant_safe(): void
     {
         extract($this->fixture());
