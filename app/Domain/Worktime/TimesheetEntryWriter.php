@@ -161,14 +161,29 @@ final class TimesheetEntryWriter
             ->where('employee_id', $employeeId)->whereBetween('work_date', [$from, $to])
             ->get(['work_date', 'planned_minutes'])->keyBy('work_date');
 
+        // Read-only medical overlay from approved leave records. Planned medical leave
+        // must NOT become fabricated actual attendance or deduct ordinary leave balances.
+        $medicalPeriods = DB::table('employee_leaves as l')
+            ->join('leave_types as t', 't.id', '=', 'l.leave_type_id')
+            ->where('l.employee_id', $employeeId)->where('t.company_id', $companyId)
+            ->where('t.category', 'medical')->whereNull('l.cancelled_at')
+            ->whereRaw('COALESCE(l.actual_started_on,l.planned_started_on) <= ?', [$to])
+            ->whereRaw('COALESCE(l.actual_ended_on,l.planned_ended_on) >= ?', [$from])
+            ->get(['l.planned_started_on','l.planned_ended_on','l.actual_started_on','l.actual_ended_on']);
+
         return DB::table('production_calendar_days')
             ->where('company_id', $companyId)
             ->whereBetween('work_date', [$from, $to])
             ->select('work_date', 'day_type', 'planned_minutes', 'label')
             ->orderBy('work_date')
             ->get()
-            ->map(static function (object $calendar) use ($entries, $plannedDays): array {
+            ->map(static function (object $calendar) use ($entries, $plannedDays, $medicalPeriods): array {
                 $entry = $entries->get($calendar->work_date);
+                $medical = $medicalPeriods->first(static function (object $period) use ($calendar): bool {
+                    $started = $period->actual_started_on ?? $period->planned_started_on;
+                    $ended = $period->actual_ended_on ?? $period->planned_ended_on;
+                    return $started <= $calendar->work_date && $ended >= $calendar->work_date;
+                });
                 return [
                     'date' => $calendar->work_date,
                     'day_type' => $calendar->day_type,
@@ -179,6 +194,9 @@ final class TimesheetEntryWriter
                     'absence_minutes' => $entry?->absence_minutes !== null ? (int) $entry->absence_minutes : null,
                     'overtime_minutes' => $entry?->overtime_minutes !== null ? (int) $entry->overtime_minutes : null,
                     'revision' => $entry !== null ? (int) $entry->revision : null,
+                    'medical_leave_state' => $medical === null ? null
+                        : ($medical->actual_started_on !== null && $medical->actual_ended_on !== null
+                            ? 'confirmed' : 'planned'),
                 ];
             })
             ->all();

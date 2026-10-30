@@ -67,7 +67,8 @@ final class EmployeeSelfServiceController extends Controller
             'requests_last_page' => $requests?->lastPage() ?? 1, 'leaves_last_page' => $leaves?->lastPage() ?? 1,
             'manager_approval_required' => (bool) config('hrm.leave_manager_approval_enabled', false),
             'protected_evidence_uploads_enabled' => (bool) config('hrm.protected_leave_evidence_enabled', false),
-            'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false)]])
+            'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false),
+            'medical_evidence_required' => (bool) config('hrm.medical_leave_evidence_required', false)]])
             ->header('Cache-Control', 'private, no-store');
     }
 

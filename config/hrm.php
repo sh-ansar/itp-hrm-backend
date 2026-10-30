@@ -53,6 +53,8 @@ return [
     // Existing requests stay compatible until explicit rollout and policy sign-off.
     'protected_leave_evidence_enabled' => (bool) env('HRM_PROTECTED_LEAVE_EVIDENCE_ENABLED', false),
     'protected_leave_evidence_required' => (bool) env('HRM_PROTECTED_LEAVE_EVIDENCE_REQUIRED', false),
+    // Separate medical-document gate: enabling sick leave evidence never changes maternity policy.
+    'medical_leave_evidence_required' => (bool) env('HRM_MEDICAL_LEAVE_EVIDENCE_REQUIRED', false),
 
     // Financially sensitive proposals remain disabled until explicit deployment approval.
     'bonus_writes_enabled' => (bool) env('HRM_BONUS_WRITES_ENABLED', false),

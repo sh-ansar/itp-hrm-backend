@@ -33,6 +33,9 @@
         <env name="HRM_WORKTIME_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_WORKTIME_PERIOD_APPROVALS_ENABLED" value="false" force="true"/>
         <env name="HRM_LEAVE_WRITES_ENABLED" value="false" force="true"/>
+        <env name="HRM_PROTECTED_LEAVE_EVIDENCE_ENABLED" value="false" force="true"/>
+        <env name="HRM_PROTECTED_LEAVE_EVIDENCE_REQUIRED" value="false" force="true"/>
+        <env name="HRM_MEDICAL_LEAVE_EVIDENCE_REQUIRED" value="false" force="true"/>
         <env name="HRM_LEAVE_MANAGER_APPROVAL_ENABLED" value="false" force="true"/>
         <env name="HRM_BONUS_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_ROLE_MANAGEMENT_ENABLED" value="false" force="true"/>

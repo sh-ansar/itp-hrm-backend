@@ -99,7 +99,9 @@ final class AbsenceRegisterProjector
                 'middle_name' => $row->middle_name,
                 'department_name' => $row->department_name,
                 'absence_type' => $masked ? 'restricted' : $row->absence_type,
-                'reason' => $masked ? 'Отсутствие' : $row->reason,
+                'reason' => $masked ? 'Отсутствие'
+                    : ($isLeave && $row->category === 'medical' && $row->absence_type === 'medical_leave'
+                        ? 'Больничный' : $row->reason),
                 'started_on' => $row->started_on,
                 'ended_on' => $row->ended_on,
                 'days' => (int) $from->diffInDays($to) + 1,
