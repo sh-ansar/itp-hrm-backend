@@ -11,7 +11,10 @@ use Illuminate\Validation\ValidationException;
 
 final class TimesheetEntryWriter
 {
-    public function __construct(private readonly HrAuditWriter $audit) {}
+    public function __construct(
+        private readonly HrAuditWriter $audit,
+        private readonly EmploymentPeriodLookup $employment,
+    ) {}
 
     public function upsert(User $actor, string $companyId, string $employeeId, string $month, array $days): array
     {
@@ -66,8 +69,25 @@ final class TimesheetEntryWriter
                 ->get()
                 ->keyBy('work_date');
 
+            $enforceEmployment = (bool) config('hrm.worktime_employment_guard_enabled', false);
+            $employment = $enforceEmployment
+                ? $this->employment->forEmployees($companyId, [$employeeId], min($dates), max($dates))
+                : collect();
+
             foreach ($days as $index => $day) {
                 $current = $existing->get($day['date']);
+                if ($enforceEmployment && ! EmploymentPeriodLookup::isEmployed($employment, $employeeId, $day['date'])) {
+                    // Do not invent actuals for someone not yet hired or already dismissed.
+                    // Historical invalid records may be cleared, never re-created or increased.
+                    $hasActual = (int) ($day['worked_minutes'] ?? 0) > 0
+                        || (int) ($day['absence_minutes'] ?? 0) > 0
+                        || (int) ($day['overtime_minutes'] ?? 0) > 0;
+                    if ($hasActual || $current === null) {
+                        throw ValidationException::withMessages([
+                            "days.{$index}.date" => 'Outside employment. Only clearing an existing historical entry is allowed.',
+                        ]);
+                    }
+                }
                 $expected = $day['revision'];
                 if (($current === null && $expected !== null)
                     || ($current !== null && ($expected === null || (int) $current->revision !== $expected))) {
@@ -151,6 +171,11 @@ final class TimesheetEntryWriter
         $from = $month.'-01';
         $to = date('Y-m-t', strtotime($from));
 
+        $enforceEmployment = (bool) config('hrm.worktime_employment_guard_enabled', false);
+        $employment = $enforceEmployment
+            ? $this->employment->forEmployees($companyId, [$employeeId], $from, $to)
+            : collect();
+
         $entries = DB::table('worktime_entries')
             ->where('employee_id', $employeeId)
             ->whereBetween('work_date', [$from, $to])
@@ -177,8 +202,10 @@ final class TimesheetEntryWriter
             ->select('work_date', 'day_type', 'planned_minutes', 'label')
             ->orderBy('work_date')
             ->get()
-            ->map(static function (object $calendar) use ($entries, $plannedDays, $medicalPeriods): array {
+            ->map(static function (object $calendar) use ($entries, $plannedDays, $medicalPeriods, $enforceEmployment, $employment, $employeeId): array {
                 $entry = $entries->get($calendar->work_date);
+                $employed = ! $enforceEmployment
+                    || EmploymentPeriodLookup::isEmployed($employment, $employeeId, $calendar->work_date);
                 $medical = $medicalPeriods->first(static function (object $period) use ($calendar): bool {
                     $started = $period->actual_started_on ?? $period->planned_started_on;
                     $ended = $period->actual_ended_on ?? $period->planned_ended_on;
@@ -188,8 +215,11 @@ final class TimesheetEntryWriter
                     'date' => $calendar->work_date,
                     'day_type' => $calendar->day_type,
                     'label' => $calendar->label,
-                    'planned_minutes' => $plannedDays->get($calendar->work_date)?->planned_minutes
-                        ?? ($calendar->planned_minutes !== null ? (int) $calendar->planned_minutes : 0),
+                    'planned_minutes' => $employed
+                        ? ($plannedDays->get($calendar->work_date)?->planned_minutes
+                            ?? ($calendar->planned_minutes !== null ? (int) $calendar->planned_minutes : 0))
+                        : 0,
+                    'employment_state' => $enforceEmployment ? ($employed ? 'employed' : 'outside') : null,
                     'worked_minutes' => $entry?->worked_minutes !== null ? (int) $entry->worked_minutes : null,
                     'absence_minutes' => $entry?->absence_minutes !== null ? (int) $entry->absence_minutes : null,
                     'overtime_minutes' => $entry?->overtime_minutes !== null ? (int) $entry->overtime_minutes : null,
