@@ -26,6 +26,7 @@ final class LeaveRequestController extends Controller
             'year' => ['sometimes', 'integer', 'between:2000,2100'],
             'q' => ['sometimes', 'string', 'max:120'],
             'department_id' => ['sometimes', 'uuid'],
+            'category' => ['sometimes', 'in:ordinary,medical,maternity,childcare'],
         ]);
 
         $query = DB::table('leave_requests as lr')
@@ -56,6 +57,12 @@ final class LeaveRequestController extends Controller
                 // Do not leak a different manager's requests inside shared scopes.
                 $query->where('lr.assigned_manager_user_id', $request->user()->getAuthIdentifier());
             }
+        }
+        // A medical-only register is HR-facing. Managers must not infer health status
+        // through filtered totals even though their generic projection is masked.
+        if (isset($filters['category'])) {
+            abort_if($manager, 403);
+            $query->where('lt.category', $filters['category']);
         }
         if (isset($filters['status'])) $query->where('lr.status', $filters['status']);
         if (isset($filters['year'])) {
@@ -117,6 +124,7 @@ final class LeaveRequestController extends Controller
                 'can_approve_leave_requests' => $permissions->canApproveLeaveRequests($request->user(), $company),
                 'protected_evidence_uploads_enabled' => ! $manager && (bool) config('hrm.protected_leave_evidence_enabled', false),
                 'protected_evidence_required' => (bool) config('hrm.protected_leave_evidence_required', false),
+                'medical_evidence_required' => ! $manager && (bool) config('hrm.medical_leave_evidence_required', false),
             ],
         ]);
     }

@@ -156,8 +156,14 @@ final class LeavePlanWorkflow
                 // may be approved without a separate HR-verified private document.
                 $kind = DB::table('leave_types')->where('id', $record->leave_type_id)
                     ->where('company_id', $company)->value('category');
-                if (in_array($kind, ['medical', 'maternity', 'childcare'], true)
-                    && config('hrm.protected_leave_evidence_required', false)) {
+                $needsEvidence = in_array($kind, ['medical', 'maternity', 'childcare'], true)
+                    && (config('hrm.protected_leave_evidence_required', false)
+                        || ($kind === 'medical' && config('hrm.medical_leave_evidence_required', false)));
+                if ($needsEvidence) {
+                    if ($kind === 'medical' && config('hrm.medical_leave_evidence_required', false)) {
+                        abort_unless(config('hrm.protected_leave_evidence_enabled', false), 409,
+                            'Private medical evidence uploads must be enabled before approving sick leave.');
+                    }
                     $verified = DB::table('leave_request_evidence')
                         ->where('company_id', $company)->where('leave_request_id', $id)
                         ->where('status', 'verified')->exists();
