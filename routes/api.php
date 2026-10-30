@@ -42,6 +42,7 @@ use App\Http\Controllers\Api\V1\LeaveActualReviewController;
 use App\Http\Controllers\Api\V1\LeaveRequestController;
 use App\Http\Controllers\Api\V1\ProtectedLeaveEvidenceController;
 use App\Http\Controllers\Api\V1\LeaveTypeController;
+use App\Http\Controllers\Api\V1\LeaveTypeUpdateController;
 use App\Http\Controllers\Api\V1\LeaveBalanceController;
 use App\Http\Controllers\Api\V1\EmployeeBonusController;
 use Illuminate\Http\Request;
@@ -169,6 +170,8 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company');
         Route::post('/companies/{company}/leave-types', [LeaveTypeController::class, 'store'])
             ->whereUuid('company');
+        Route::put('/companies/{company}/leave-types/{leaveType}', LeaveTypeUpdateController::class)
+            ->whereUuid('company')->whereUuid('leaveType');
         Route::get('/companies/{company}/leave-requests', [LeaveRequestController::class, 'index'])
             ->whereUuid('company');
         Route::post('/companies/{company}/leave-requests', [LeaveRequestController::class, 'store'])
