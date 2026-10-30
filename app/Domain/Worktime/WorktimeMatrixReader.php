@@ -14,6 +14,7 @@ final class WorktimeMatrixReader
     public function __construct(
         private readonly WorktimeMatrixAuthorization $access,
         private readonly HrAuditWriter $audit,
+        private readonly EmploymentPeriodLookup $employment,
     ) {}
 
     public function read(User $actor, string $company, array $input): array
@@ -110,6 +111,10 @@ final class WorktimeMatrixReader
 
         $page = $base->paginate((int) ($input['per_page'] ?? 30), ['*'], 'page', (int) ($input['page'] ?? 1));
         $ids = array_map(static fn (object $row): string => $row->id, $page->items());
+        $enforceEmployment = (bool) config('hrm.worktime_employment_guard_enabled', false);
+        $employment = $enforceEmployment
+            ? $this->employment->forEmployees($company, $ids, $from, $to)
+            : collect();
         $calendar = DB::table('production_calendar_days')->where('company_id', $company)
             ->whereBetween('work_date', [$from, $to])
             ->get(['work_date', 'day_type', 'planned_minutes', 'label'])->keyBy('work_date');
@@ -170,9 +175,11 @@ final class WorktimeMatrixReader
                 $entry = $entries->get($key);
                 $plan = $plans->get($key);
                 $cal = $calendar->get($when);
-                $planned = $plan?->planned_minutes ?? ($cal !== null
+                $employed = ! $enforceEmployment
+                    || EmploymentPeriodLookup::isEmployed($employment, $employee->id, $when);
+                $planned = $employed ? ($plan?->planned_minutes ?? ($cal !== null
                     && in_array($cal->day_type, ['workday', 'shortened'], true)
-                        ? $cal->planned_minutes : ($cal !== null ? 0 : null));
+                        ? $cal->planned_minutes : ($cal !== null ? 0 : null))) : 0;
                 $onLeave = ($leaves->get($employee->id) ?? collect())->contains(
                     static fn (object $x): bool => $x->planned_started_on <= $when
                         && $x->planned_ended_on >= $when);
@@ -184,13 +191,13 @@ final class WorktimeMatrixReader
                 $unverifiedShift = $plan === null && ($running->count() > 1
                     || ($running->count() === 1 && $running->first()->schedule_type !== 'standard'));
                 $recorded = $entry !== null;
-                $state = $cal === null ? 'unconfigured'
+                $state = ! $employed ? 'outside_employment' : ($cal === null ? 'unconfigured'
                     : ($onLeave ? 'leave'
                     : ($onAbsence ? 'absence'
                     : ($recorded ? 'recorded'
                     : ($unverifiedShift ? 'unknown_shift'
                     : (($planned ?? 0) <= 0 ? 'rest'
-                    : ($when > $today ? 'future' : 'missing'))))));
+                    : ($when > $today ? 'future' : 'missing')))))));
                 if ($planned !== null) $summary['planned_minutes'] += (int) $planned;
                 if ($entry?->worked_minutes !== null) {
                     $summary['worked_minutes'] += (int) $entry->worked_minutes;
@@ -204,10 +211,10 @@ final class WorktimeMatrixReader
                     'absence_minutes' => $entry?->absence_minutes !== null ? (int) $entry->absence_minutes : null,
                     'overtime_minutes' => $entry?->overtime_minutes !== null ? (int) $entry->overtime_minutes : null,
                     'revision' => $entry?->revision !== null ? (int) $entry->revision : null,
-                    'shift_code' => $plan?->shift_code,
+                    'shift_code' => $employed ? $plan?->shift_code : null,
                     'state' => $state,
                     'locked' => $date['locked'],
-                    'editable' => $canWrite && !$date['locked'] && $when <= $today && $cal !== null
+                    'editable' => $canWrite && $employed && !$date['locked'] && $when <= $today && $cal !== null
                         && !$onLeave && !$onAbsence && !$unverifiedShift && $planned !== null
                         && (int) $planned > 0
                         && ($plan !== null || in_array($cal->day_type, ['workday', 'shortened'], true)),

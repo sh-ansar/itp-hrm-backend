@@ -20,6 +20,9 @@ return [
 
     // Worktime mutation endpoints are not released in the first read-only contract.
     'worktime_writes_enabled' => (bool) env('HRM_WORKTIME_WRITES_ENABLED', false),
+    // Explicit rollout: reflect employment on per-day timecards and forbid new
+    // actuals outside a hire/transfer/termination assignment period.
+    'worktime_employment_guard_enabled' => (bool) env('HRM_WORKTIME_EMPLOYMENT_GUARD_ENABLED', false),
     // Separate gate for transactional, create-only bulk attendance operations.
     'worktime_bulk_fill_enabled' => (bool) env('HRM_WORKTIME_BULK_FILL_ENABLED', false),
     // Future schedule patterns + year-long day plans. Disabled until isolated QA.
