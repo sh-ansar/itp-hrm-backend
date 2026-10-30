@@ -66,6 +66,7 @@ enum HrAuditAction: string
     case LeaveRecordsListed = 'leave.records_listed';
     case LeaveActualReviewed = 'leave.actual_reviewed';
     case LeaveTypeCreated = 'leave.type_created';
+    case LeaveTypeUpdated = 'leave.type_updated';
     case LeaveRequestCreated = 'leave.request_created';
     case LeaveRequestUpdated = 'leave.request_updated';
     case LeaveRequestSubmitted = 'leave.request_submitted';
