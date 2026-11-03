@@ -21,6 +21,9 @@ final class SaveEmployeeEducationRequest extends FormRequest
             'organization' => ['required', 'string', 'max:255'],
             'started_on' => ['present', 'nullable', 'date_format:Y-m-d'],
             'ended_on' => ['present', 'nullable', 'date_format:Y-m-d'],
+            // Both years are optional for v1 clients that still send full dates.
+            'started_year' => ['sometimes', 'nullable', 'integer', 'between:1850,2200'],
+            'ended_year' => ['sometimes', 'nullable', 'integer', 'between:1850,2200'],
             'specialization' => ['present', 'nullable', 'string', 'max:255'],
             'document_reference' => ['present', 'nullable', 'string', 'max:255'],
             'revision' => $this->isMethod('put')
@@ -34,6 +37,19 @@ final class SaveEmployeeEducationRequest extends FormRequest
         return [function (Validator $validator): void {
             $start = $this->input('started_on');
             $end = $this->input('ended_on');
+            $yearStart = $this->input('started_year');
+            $yearEnd = $this->input('ended_year');
+            if (is_numeric($yearStart) && is_numeric($yearEnd) && (int) $yearEnd < (int) $yearStart) {
+                $validator->errors()->add('ended_year', 'Completion year cannot precede start year.');
+            }
+            if (is_numeric($yearStart) && is_string($start) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)
+                && (int) substr($start, 0, 4) !== (int) $yearStart) {
+                $validator->errors()->add('started_year', 'Start year conflicts with precise start date.');
+            }
+            if (is_numeric($yearEnd) && is_string($end) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)
+                && (int) substr($end, 0, 4) !== (int) $yearEnd) {
+                $validator->errors()->add('ended_year', 'End year conflicts with precise completion date.');
+            }
             if (is_string($start) && is_string($end)
                 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $start)
                 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)
