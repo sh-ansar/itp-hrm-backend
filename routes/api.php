@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\CompanyMembershipController;
+use App\Http\Controllers\Api\V1\CompanyRoleTemplateController;
 use App\Http\Controllers\Api\V1\CompanyDirectoryController;
 use App\Http\Controllers\Api\V1\CompanyIndexController;
 use App\Http\Controllers\Api\V1\CurrentAccessController;
@@ -61,7 +62,7 @@ Route::prefix('v1')->group(function (): void {
         ],
     ]));
 
-    Route::middleware(['auth:sanctum', 'hrm.active-account'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'hrm.active-account', 'hrm.custom-role'])->group(function (): void {
         Route::get('/me/access', CurrentAccessController::class);
         Route::get('/me/notifications', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'index']);
         Route::put('/me/notifications/{notification}/read', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'read'])->whereUuid('notification');
@@ -314,6 +315,15 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/companies/{company}/employees/{employee}/profile/{section}/{record}', [EmployeeProfileRecordController::class, 'update'])
             ->whereUuid('company')->whereUuid('employee')->whereUuid('record')
             ->whereIn('section', ['experience', 'reserve', 'training']);
+
+        Route::get('/companies/{company}/role-templates', [CompanyRoleTemplateController::class, 'index'])
+            ->whereUuid('company');
+        Route::post('/companies/{company}/role-templates', [CompanyRoleTemplateController::class, 'store'])
+            ->whereUuid('company');
+        Route::put('/companies/{company}/role-templates/{template}', [CompanyRoleTemplateController::class, 'update'])
+            ->whereUuid('company')->whereUuid('template');
+        Route::delete('/companies/{company}/role-templates/{template}', [CompanyRoleTemplateController::class, 'destroy'])
+            ->whereUuid('company')->whereUuid('template');
 
         Route::get('/companies/{company}/memberships', [CompanyMembershipController::class, 'index'])
             ->whereUuid('company');
