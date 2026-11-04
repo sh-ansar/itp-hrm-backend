@@ -172,6 +172,19 @@ final class CompanyRoleAssignments
                 throw new AuthorizationException('Admin memberships are immutable via API.');
             }
 
+            // A revoked membership must not retain department grants that could
+            // become effective again on a subsequent role assignment.
+            $previousDepartmentIds = DB::table('department_access_scopes')
+                ->where('user_id', $targetUserId)
+                ->where('company_id', $companyId)
+                ->pluck('department_id')
+                ->all();
+
+            DB::table('department_access_scopes')
+                ->where('user_id', $targetUserId)
+                ->where('company_id', $companyId)
+                ->delete();
+
             DB::table('company_user_roles')
                 ->where('user_id', $targetUserId)
                 ->where('company_id', $companyId)
@@ -182,7 +195,10 @@ final class CompanyRoleAssignments
                 $companyId,
                 HrAuditAction::RoleRevoked,
                 $targetUserId,
-                ['previous_role' => $current->role_code],
+                [
+                    'previous_role' => $current->role_code,
+                    'previous_department_ids' => $previousDepartmentIds,
+                ],
             );
         }, 3);
     }
