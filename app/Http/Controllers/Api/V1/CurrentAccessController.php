@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Identity\CompanyCapabilities;
 use App\Domain\Identity\CompanyRole;
+use App\Domain\Identity\CustomRolePermissions;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,13 +16,13 @@ use Illuminate\Support\Facades\DB;
  */
 final class CurrentAccessController extends Controller
 {
-    public function __invoke(Request $request, CompanyCapabilities $capabilities): JsonResponse
+    public function __invoke(Request $request, CompanyCapabilities $capabilities, CustomRolePermissions $customRoles): JsonResponse
     {
         $userId = $request->user()->getAuthIdentifier();
         $rows = DB::table('company_user_roles as membership')
             ->join('companies as company', 'company.id', '=', 'membership.company_id')
             ->where('membership.user_id', $userId)
-            ->select('membership.company_id', 'company.name as company_name', 'membership.role_code')
+            ->select('membership.company_id', 'company.name as company_name', 'membership.role_code', 'membership.custom_role_id')
             ->orderBy('company.id')
             ->get();
 
@@ -38,13 +39,15 @@ final class CurrentAccessController extends Controller
             ->orderBy('department.name')
             ->get()->groupBy('company_id');
 
-        $companies = $rows->map(static function (object $row) use ($scopes, $capabilities): ?array {
+        $companies = $rows->map(static function (object $row) use ($scopes, $capabilities, $customRoles, $userId): ?array {
             $role = CompanyRole::tryFrom($row->role_code);
             if ($role === null) {
                 // Unknown role strings must never inherit HR access.
                 return null;
             }
-            return [
+            $template = $row->custom_role_id === null
+                ? null : $customRoles->assignedTemplate((int) $userId, $row->company_id);
+            $company = [
                 'company_id' => $row->company_id,
                 'company_name' => $row->company_name,
                 'role_code' => $role->value,
@@ -53,8 +56,14 @@ final class CurrentAccessController extends Controller
                         'id' => $department->id, 'name' => $department->name,
                     ])->values()->all()
                     : [],
-                'capabilities' => $capabilities->forRole($role),
+                'capabilities' => $template === null
+                    ? $capabilities->forRole($role)
+                    : $customRoles->effective($role, $template->capabilities),
             ];
+            if ($template !== null) {
+                $company['custom_role'] = ['id' => $template->id, 'code' => $template->code, 'name' => $template->name];
+            }
+            return $company;
         })->filter()->values()->all();
 
         return response()->json([

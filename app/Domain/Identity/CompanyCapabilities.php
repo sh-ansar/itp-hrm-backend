@@ -57,7 +57,14 @@ final class CompanyCapabilities
             'leave.requests.review' => $manager && (bool) config('hrm.leave_manager_approval_enabled', false)
                 && (bool) config('hrm.leave_writes_enabled', false),
             'leave.types.manage' => $admin && (bool) config('hrm.leave_writes_enabled', false),
+            // Protected medical / family leave files are a separate sensitive right.
+            'leaves.evidence.view' => $staff,
             'roles.assign' => $admin && (bool) config('hrm.role_management_enabled', false),
+            'worktime.write' => ($staff || ($manager && (bool) config('hrm.worktime_manager_planning_enabled', false)))
+                && (bool) config('hrm.worktime_writes_enabled', false),
+            'bonuses.view' => $staff,
+            'bonuses.manage' => $staff && (bool) config('hrm.bonus_writes_enabled', false),
+            'bonuses.approve' => $admin && (bool) config('hrm.bonus_writes_enabled', false),
         ];
     }
 }

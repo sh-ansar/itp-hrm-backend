@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Audit\HrAuditAction;
 use App\Domain\Audit\HrAuditWriter;
 use App\Domain\Personnel\EmployeeVisibility;
+use App\Domain\Identity\CompanyRole;
+use App\Domain\Identity\CustomRolePermissions;
 use App\Domain\Personnel\EmployeePrivateProfile;
 use App\Domain\Personnel\EmployeePrivateRecords;
 use App\Domain\Personnel\EmployeeEducationRecords;
@@ -20,6 +22,7 @@ final class EmployeeShowController extends Controller
         string $company,
         string $employee,
         EmployeeVisibility $visibility,
+        CustomRolePermissions $customRoles,
         EmployeePrivateProfile $privateProfiles,
         EmployeePrivateRecords $privateRecords,
         EmployeeEducationRecords $educationRecords,
@@ -70,7 +73,16 @@ final class EmployeeShowController extends Controller
             ->get();
 
         $extended = in_array($role, ['company_admin', 'hr_specialist'], true);
-        $personnelWritesEnabled = $extended && (bool) config('hrm.personnel_writes_enabled', false);
+        $template = $customRoles->assignedTemplate((int) $request->user()->getAuthIdentifier(), $company);
+        $templateCapabilities = $template === null ? null
+            : $customRoles->effective(CompanyRole::from($role), $template->capabilities);
+        // A custom profile may grant the registry without granting sensitive
+        // employee contacts, private profiles, education or audit history.
+        if ($templateCapabilities !== null) {
+            $extended = $extended && ($templateCapabilities['employees.extended_view'] ?? false);
+        }
+        $personnelWritesEnabled = $extended && (bool) config('hrm.personnel_writes_enabled', false)
+            && ($templateCapabilities === null || ($templateCapabilities['employees.write'] ?? false));
         // Personal contact data is visible only to HR/company administrators.
         if ($extended) {
             $row->has_photo = DB::table('employees')->where('company_id', $company)

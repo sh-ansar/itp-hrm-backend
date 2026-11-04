@@ -30,6 +30,7 @@ final class CompanyMembershipController extends Controller
 
         $query = DB::table('company_user_roles as membership')
             ->join('users as user', 'user.id', '=', 'membership.user_id')
+            ->leftJoin('company_role_templates as template', 'template.id', '=', 'membership.custom_role_id')
             ->where('membership.company_id', $company)
             ->select(
                 'user.id',
@@ -37,6 +38,8 @@ final class CompanyMembershipController extends Controller
                 'user.email',
                 'user.account_status',
                 'membership.role_code',
+                'membership.custom_role_id',
+                'template.name as custom_role_name',
                 'membership.updated_at',
             );
 
@@ -77,6 +80,8 @@ final class CompanyMembershipController extends Controller
                 'email' => $row->email,
                 'status' => $row->account_status,
                 'role_code' => $row->role_code,
+                'custom_role_id' => $row->custom_role_id,
+                'custom_role_name' => $row->custom_role_name,
                 'department_scopes' => ($scopes->get($row->id, collect()))
                     ->map(static fn (object $scope): array => [
                         'id' => $scope->id,
@@ -92,6 +97,9 @@ final class CompanyMembershipController extends Controller
             \App\Domain\Audit\HrAuditAction::RoleGranted->value,
             \App\Domain\Audit\HrAuditAction::RoleChanged->value,
             \App\Domain\Audit\HrAuditAction::RoleRevoked->value,
+            \App\Domain\Audit\HrAuditAction::RoleTemplateCreated->value,
+            \App\Domain\Audit\HrAuditAction::RoleTemplateUpdated->value,
+            \App\Domain\Audit\HrAuditAction::RoleTemplateDeleted->value,
         ];
         $audit = DB::table('hr_audit_events as audit')
             ->leftJoin('users as actor', 'actor.id', '=', 'audit.actor_user_id')
@@ -126,6 +134,7 @@ final class CompanyMembershipController extends Controller
                 'per_page' => $page->perPage(),
                 'total' => $page->total(),
                 'role_management_enabled' => (bool) config('hrm.role_management_enabled', false),
+                'custom_role_templates_enabled' => (bool) config('hrm.custom_role_templates_enabled', false),
             ],
             'audit' => $audit,
             'roles' => collect(CompanyRole::cases())->map(static fn (CompanyRole $role): array => [
@@ -152,6 +161,7 @@ final class CompanyMembershipController extends Controller
             ])],
             'department_ids' => ['sometimes', 'array', 'max:100'],
             'department_ids.*' => ['required', 'uuid', 'distinct'],
+            'custom_role_id' => ['sometimes', 'nullable', 'uuid'],
         ]);
 
         $departmentIds = $validated['department_ids'] ?? [];
@@ -169,6 +179,7 @@ final class CompanyMembershipController extends Controller
                 $member,
                 CompanyRole::from($validated['role_code']),
                 $departmentIds,
+                $validated['custom_role_id'] ?? null,
             ),
         ]);
     }

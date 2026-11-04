@@ -37,12 +37,13 @@ final class CompanyRoleAssignments
         int $targetUserId,
         CompanyRole $role,
         array $departmentIds,
+        ?string $customRoleId = null,
     ): array {
         if ($role === CompanyRole::CompanyAdmin) {
             throw new AuthorizationException('Admin grants are not available via API.');
         }
 
-        return DB::transaction(function () use ($actor, $companyId, $targetUserId, $role, $departmentIds): array {
+        return DB::transaction(function () use ($actor, $companyId, $targetUserId, $role, $departmentIds, $customRoleId): array {
             $this->assertCompanyAdmin($actor, $companyId);
             $this->assertNotSelf($actor, $targetUserId);
 
@@ -61,10 +62,22 @@ final class CompanyRoleAssignments
                 ->where('user_id', $targetUserId)
                 ->where('company_id', $companyId)
                 ->lockForUpdate()
-                ->first(['role_code']);
+                ->first(['role_code', 'custom_role_id']);
 
             if ($current?->role_code === CompanyRole::CompanyAdmin->value) {
                 throw new AuthorizationException('Admin memberships are immutable via API.');
+            }
+
+            if ($customRoleId !== null) {
+                abort_unless(config('hrm.custom_role_templates_enabled', false), 404);
+                $template = DB::table('company_role_templates')
+                    ->where('company_id', $companyId)->where('id', $customRoleId)
+                    ->lockForUpdate()->first(['id', 'base_role', 'status']);
+                if ($template === null || $template->status !== 'active' || $template->base_role !== $role->value) {
+                    throw ValidationException::withMessages([
+                        'custom_role_id' => 'Role must be active, belong to this company, and match its base role.',
+                    ]);
+                }
             }
 
             $wanted = $role === CompanyRole::DepartmentManager ? array_values($departmentIds) : [];
@@ -92,8 +105,9 @@ final class CompanyRoleAssignments
 
             // PUT is idempotent; repeated identical requests do not create
             // duplicate rows, timestamps or misleading audit events.
-            if ($current !== null && $current->role_code === $role->value && $existing === $wanted) {
-                return ['user_id' => $targetUserId, 'role_code' => $role->value, 'department_ids' => $wanted];
+            if ($current !== null && $current->role_code === $role->value
+                && $current->custom_role_id === $customRoleId && $existing === $wanted) {
+                return $this->assignedResponse($targetUserId, $role, $wanted, $customRoleId);
             }
 
             $at = now();
@@ -102,14 +116,15 @@ final class CompanyRoleAssignments
                     'user_id' => $targetUserId,
                     'company_id' => $companyId,
                     'role_code' => $role->value,
+                    'custom_role_id' => $customRoleId,
                     'created_at' => $at,
                     'updated_at' => $at,
                 ]);
-            } elseif ($current->role_code !== $role->value) {
+            } elseif ($current->role_code !== $role->value || $current->custom_role_id !== $customRoleId) {
                 DB::table('company_user_roles')
                     ->where('user_id', $targetUserId)
                     ->where('company_id', $companyId)
-                    ->update(['role_code' => $role->value, 'updated_at' => $at]);
+                    ->update(['role_code' => $role->value, 'custom_role_id' => $customRoleId, 'updated_at' => $at]);
             }
 
             DB::table('department_access_scopes')
@@ -135,12 +150,14 @@ final class CompanyRoleAssignments
                 [
                     'previous_role' => $current?->role_code,
                     'new_role' => $role->value,
+                    'previous_template_id' => $current?->custom_role_id,
+                    'new_template_id' => $customRoleId,
                     'previous_department_ids' => $existing,
                     'new_department_ids' => $wanted,
                 ],
             );
 
-            return ['user_id' => $targetUserId, 'role_code' => $role->value, 'department_ids' => $wanted];
+            return $this->assignedResponse($targetUserId, $role, $wanted, $customRoleId);
         }, 3);
     }
 
@@ -201,6 +218,13 @@ final class CompanyRoleAssignments
                 ],
             );
         }, 3);
+    }
+
+    private function assignedResponse(int $targetUserId, CompanyRole $role, array $wanted, ?string $customRoleId): array
+    {
+        $result = ['user_id' => $targetUserId, 'role_code' => $role->value, 'department_ids' => $wanted];
+        if ($customRoleId !== null) $result['custom_role_id'] = $customRoleId;
+        return $result;
     }
 
     private function assertNotSelf(User $actor, int $targetUserId): void

@@ -5,6 +5,8 @@ return [
     // Explicitly opt-in only after security and business-role approval.
     // Default is fail-closed on every environment, including production.
     'role_management_enabled' => (bool) env('HRM_ROLE_MANAGEMENT_ENABLED', false),
+    // Custom roles can only restrict canonical Laravel roles.
+    'custom_role_templates_enabled' => (bool) env('HRM_CUSTOM_ROLE_TEMPLATES_ENABLED', false),
 
     // This first-party browser login is not released until HTTPS/origin review.
     'personnel_writes_enabled' => (bool) env('HRM_PERSONNEL_WRITES_ENABLED', false),
