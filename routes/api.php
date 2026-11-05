@@ -62,13 +62,23 @@ Route::prefix('v1')->group(function (): void {
         ],
     ]));
 
-    Route::middleware(['auth:sanctum', 'hrm.active-account', 'hrm.custom-role'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'hrm.active-account', 'hrm.custom-role', 'hrm.saas-entitlement'])->group(function (): void {
         Route::get('/me/access', CurrentAccessController::class);
         Route::get('/me/notifications', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'index']);
         Route::put('/me/notifications/{notification}/read', [\App\Http\Controllers\Api\V1\WorkflowNotificationController::class, 'read'])->whereUuid('notification');
         Route::get('/me/preferences', [UserPreferencesController::class, 'show']);
         Route::put('/me/preferences', [UserPreferencesController::class, 'update']);
         Route::get('/companies', CompanyIndexController::class);
+        // Company billing stays available even when a new customer has not paid.
+        $payment = \App\Http\Controllers\Api\V1\HrmPaymentController::class;
+        Route::get('/companies/{company}/billing/subscription', [$payment, 'mySubscription'])->whereUuid('company');
+        Route::get('/companies/{company}/billing/invoices', [$payment, 'myInvoices'])->whereUuid('company');
+        Route::post('/companies/{company}/billing/checkout', [$payment, 'checkout'])->whereUuid('company')->middleware('throttle:8,1');
+        Route::get('/companies/{company}/billing/invoices/{invoice}/print', [$payment, 'companyPrintableInvoice'])->whereUuid('company')->whereNumber('invoice');
+        Route::get('/companies/{company}/billing/invoices/{invoice}/pdf', [$payment, 'companyInvoicePdf'])->whereUuid('company')->whereNumber('invoice')->middleware('throttle:20,1');
+        Route::get('/companies/{company}/billing/invoices/{invoice}/proofs', [$payment, 'companyProofs'])->whereUuid('company')->whereNumber('invoice');
+        Route::post('/companies/{company}/billing/invoices/{invoice}/proofs', [$payment, 'uploadCompany'])->whereUuid('company')->whereNumber('invoice')->middleware('throttle:8,1');
+        Route::get('/companies/{company}/billing/invoices/{invoice}/proofs/{proof}/file', [$payment, 'companyProofFile'])->whereUuid('company')->whereNumber('invoice')->whereNumber('proof');
         Route::get('/companies/{company}/me/workspace', [EmployeeSelfServiceController::class, 'show'])->whereUuid('company');
         Route::get('/companies/{company}/me/timesheet', [EmployeeSelfServiceController::class, 'timesheet'])->whereUuid('company');
         Route::get('/companies/{company}/me/leave-balances', [LeaveBalanceController::class, 'mine'])
@@ -336,4 +346,53 @@ Route::prefix('v1')->group(function (): void {
             ->whereUuid('company')
             ->whereNumber('member');
     });
+});
+
+
+// HRM public website and independent commercial administration.
+// Never share Portal's tenancy, billing tables, authentication, or cookies.
+Route::prefix('v1')->group(function (): void {
+    $public = \App\Http\Controllers\Api\V1\HrmPublicController::class;
+    Route::get('/public/capabilities', [$public, 'capabilities']);
+    Route::get('/public/plans', [$public, 'plans']);
+    Route::get('/public/legal/required', [$public, 'requiredLegal']);
+    Route::get('/public/legal/{type}', [$public, 'legal']);
+    Route::post('/public/registration/start', [$public, 'startRegistration'])->middleware('throttle:15,1');
+    Route::post('/public/registration/verify', [$public, 'verifyRegistration'])->middleware('throttle:15,1');
+    Route::post('/public/registration/complete', [$public, 'completeRegistration'])->middleware('throttle:8,1');
+
+    Route::middleware(['auth:sanctum', 'hrm.active-account'])->prefix('platform-admin')
+        ->group(function (): void {
+            $admin = \App\Http\Controllers\Api\V1\HrmPlatformController::class;
+            Route::get('/overview', [$admin, 'overview']);
+            Route::get('/companies', [$admin, 'companies']);
+            Route::get('/companies/{company}', [$admin, 'company'])->whereUuid('company');
+            Route::get('/companies/{company}/users', [$admin, 'users'])->whereUuid('company');
+            Route::put('/companies/{company}/subscription', [$admin, 'assign'])->whereUuid('company');
+            Route::get('/plans', [$admin, 'plans']);
+            Route::post('/plans', [$admin, 'savePlan']);
+            Route::put('/plans/{version}/status', [$admin, 'planState'])->whereNumber('version');
+            Route::get('/billing/supplier', [$admin, 'profiles']);
+            Route::put('/billing/supplier', [$admin, 'saveProfile']);
+            Route::get('/companies/{company}/billing', [$admin, 'profiles'])->whereUuid('company');
+            Route::put('/companies/{company}/billing', [$admin, 'saveProfile'])->whereUuid('company');
+            $payment = \App\Http\Controllers\Api\V1\HrmPaymentController::class;
+            Route::get('/invoices', [$admin, 'invoices']);
+            Route::get('/invoices/{invoice}/print', [$payment, 'adminPrintableInvoice'])->whereNumber('invoice');
+            Route::get('/invoices/{invoice}/pdf', [$payment, 'adminInvoicePdf'])->whereNumber('invoice')->middleware('throttle:20,1');
+            Route::get('/invoices/{invoice}/proofs', [$payment, 'adminProofs'])->whereNumber('invoice');
+            Route::post('/invoices/{invoice}/proofs', [$payment, 'uploadAdmin'])->whereNumber('invoice')->middleware('throttle:8,1');
+            Route::get('/invoices/{invoice}/proofs/{proof}/file', [$payment, 'adminProofFile'])->whereNumber('invoice')->whereNumber('proof');
+            Route::post('/invoices/{invoice}/proofs/{proof}/review', [$payment, 'review'])->whereNumber('invoice')->whereNumber('proof');
+            Route::post('/invoices', [$admin, 'createInvoice']);
+            Route::put('/invoices/{invoice}/status', [$admin, 'invoiceState'])->whereNumber('invoice');
+            Route::get('/legal', [$admin, 'legal']);
+            Route::get('/legal/{version}', [$admin, 'legalDetail'])->whereNumber('version');
+            Route::post('/legal', [$admin, 'saveLegal']);
+            Route::put('/legal/{version}/status', [$admin, 'legalState'])->whereNumber('version');
+            Route::get('/consents', [$admin, 'consents']);
+            Route::get('/grants', [$admin, 'grants']);
+            Route::post('/grants', [$admin, 'grant']);
+            Route::delete('/grants/{grant}', [$admin, 'revoke'])->whereNumber('grant');
+        });
 });

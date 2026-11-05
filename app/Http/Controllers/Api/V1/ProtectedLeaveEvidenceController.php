@@ -72,6 +72,7 @@ final class ProtectedLeaveEvidenceController extends Controller
         abort_if($prior && $prior->status !== 'rejected', 409,
             'Evidence is already awaiting or has completed review.');
         $pdf = $input['file'];
+        app(\App\Services\HrmSaasEntitlements::class)->assertFileSize($company, (int) $pdf->getSize());
         abort_unless(file_get_contents($pdf->getRealPath(), false, null, 0, 5) === '%PDF-', 422);
 
         // No original filenames, diagnoses or PII in the object key.
@@ -94,6 +95,9 @@ final class ProtectedLeaveEvidenceController extends Controller
                     && (int) $current->revision === (int) $input['request_revision'], 409);
                 $old = $this->evidence($company, $leaveRequest);
                 abort_if($old && $old->status !== 'rejected', 409);
+                app(\App\Services\HrmSaasEntitlements::class)->assertStorageCapacity(
+                    $company, (int) $pdf->getSize(), (int) ($old?->byte_size ?? 0)
+                );
                 $version = (int) ($old->revision ?? 0) + 1;
                 $values = [
                     'storage_path' => $path, 'byte_size' => $pdf->getSize(),

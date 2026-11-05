@@ -49,12 +49,13 @@ final class PersonnelDocumentFileController extends Controller
         }
 
         $data = $request->validate([
-            'file' => ['required', 'file', 'max:5120', 'mimetypes:application/pdf'],
+            'file' => ['required', 'file', 'max:35840', 'mimetypes:application/pdf'],
             'revision' => ['required', 'integer', 'min:1'],
         ]);
         abort_unless((int) $record->revision === (int) $data['revision'], 409);
 
         $file = $data['file'];
+        app(\App\Services\HrmSaasEntitlements::class)->assertFileSize($company, (int) $file->getSize());
         if (file_get_contents($file->getRealPath(), false, null, 0, 5) !== '%PDF-') {
             throw ValidationException::withMessages(['file' => 'The attachment must contain a valid PDF header.']);
         }
@@ -72,6 +73,7 @@ final class PersonnelDocumentFileController extends Controller
 
         try {
             DB::transaction(function () use ($request, $audit, $company, $document, $record, $path, $file): void {
+                app(\App\Services\HrmSaasEntitlements::class)->assertStorageCapacity($company, (int) $file->getSize());
                 $updated = DB::table('personnel_documents')
                     ->where('id', $document)->where('company_id', $company)
                     ->where('revision', $record->revision)->whereNull('storage_path')

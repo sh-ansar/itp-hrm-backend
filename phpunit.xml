@@ -27,6 +27,9 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="HRM_SAAS_REGISTRATION_ENABLED" value="false"/>
+        <env name="HRM_SAAS_BILLING_ENABLED" value="false"/>
+        <env name="HRM_SAAS_ENFORCEMENT_ENABLED" value="false"/>
         <!-- Test isolation: never inherit write flags from the developer's local .env. -->
         <env name="HRM_PERSONNEL_WRITES_ENABLED" value="false" force="true"/>
         <env name="HRM_DOCUMENT_WRITES_ENABLED" value="false" force="true"/>

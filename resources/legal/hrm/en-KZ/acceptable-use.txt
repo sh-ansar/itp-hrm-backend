@@ -1,0 +1,33 @@
+ACCEPTABLE USE RULES — ITP HRM
+Draft for legal review. Jurisdiction: Kazakhstan.
+
+1. Intended use
+1.1. ITP HRM is intended for legitimate personnel administration, including employees, staffing, leave, attendance and HR documents.
+1.2. Every user must act within their authorized organizational and job responsibilities. Security roles and audit mechanisms apply regardless of tariff.
+
+2. Prohibited behaviour
+2.1. Accessing another organization or employee's private records without permission, password attacks, impersonation and unauthorized changes to privileges.
+2.2. Sharing account credentials, bypassing server-side permissions or circumventing any enabled subscription restrictions.
+2.3. Importing or disclosing identity, medical, compensation or other employee personal data without an appropriate lawful purpose and necessary access restriction.
+2.4. Bulk unauthorized extraction, sale or publication of employee records.
+2.5. Falsifying personnel orders, payroll, staffing history, leave balances, timesheets or audit records.
+2.6. Uploading malware, probing infrastructure without authorization, bot registrations, deliberate excessive traffic and denial-of-service attempts.
+2.7. Using HRM for fraudulent, unlawful or unrelated commercial activity.
+
+3. Employer responsibilities
+3.1. The employer maintains accurate entries and confirms the legality of each personnel decision and document.
+3.2. Permissions must be updated upon employee transfer or departure. Suspected credential compromise must be reported immediately.
+3.3. Sensitive health or other private materials must be minimized and available only to properly authorized personnel.
+
+4. Integration and automation
+4.1. Automation and APIs may be used only within published, authorized interfaces and rate limits.
+4.2. Data exchange between companies requires explicit authorization and must not defeat tenant isolation.
+4.3. UI visibility is not itself permission to execute restricted backend operations.
+
+5. Incident handling
+5.1. The Provider may apply proportionate protective measures to stop attacks and investigate misuse, subject to applicable law and contractual obligations.
+5.2. Employee records cannot be arbitrarily deleted as a punitive measure.
+5.3. Report incidents to info@itpmining.kz without exposing other employees' data.
+
+6. Updates
+6.1. Changes are versioned and require appropriate review and publication. This is a draft, not current binding rules.

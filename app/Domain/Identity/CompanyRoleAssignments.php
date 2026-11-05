@@ -112,6 +112,7 @@ final class CompanyRoleAssignments
 
             $at = now();
             if ($current === null) {
+                app(\App\Services\HrmSaasEntitlements::class)->assertCapacity($companyId, 'users');
                 DB::table('company_user_roles')->insert([
                     'user_id' => $targetUserId,
                     'company_id' => $companyId,

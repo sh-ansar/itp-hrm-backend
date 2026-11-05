@@ -30,6 +30,7 @@ final class EmployeeRecordController extends Controller
 
         try {
             DB::transaction(function () use ($request, $company, $data, $id, $audit): void {
+                app(\App\Services\HrmSaasEntitlements::class)->assertCapacity($company, 'employees');
                 DB::table('employees')->insert([
                     'id' => $id,
                     'company_id' => $company,

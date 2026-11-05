@@ -1,6 +1,11 @@
 <?php
 
 return [
+    // HRM commercial features are isolated and default OFF until release checks pass.
+    'saas_registration_enabled' => (bool) env('HRM_SAAS_REGISTRATION_ENABLED', false),
+    'saas_billing_enabled' => (bool) env('HRM_SAAS_BILLING_ENABLED', false),
+    // Opt-in after commercial QA; legacy tenants with no enrollment remain unchanged.
+    'saas_enforcement_enabled' => (bool) env('HRM_SAAS_ENFORCEMENT_ENABLED', false),
     'workflow_notifications_enabled' => (bool) env('HRM_WORKFLOW_NOTIFICATIONS_ENABLED', false),
     // Explicitly opt-in only after security and business-role approval.
     // Default is fail-closed on every environment, including production.

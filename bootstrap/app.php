@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsureBrowserSessionEnabled;
 use App\Http\Middleware\IsolatedXsrfCookie;
 use App\Http\Middleware\EnforceCompanyRoleTemplate;
+use App\Http\Middleware\EnforceHrmSaasEntitlements;
 use App\Http\Middleware\RequestCorrelationId;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'hrm.browser-login' => EnsureBrowserSessionEnabled::class,
             'hrm.active-account' => EnsureActiveAccount::class,
             'hrm.custom-role' => EnforceCompanyRoleTemplate::class,
+            'hrm.saas-entitlement' => EnforceHrmSaasEntitlements::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

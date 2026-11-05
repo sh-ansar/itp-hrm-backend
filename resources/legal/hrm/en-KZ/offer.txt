@@ -1,0 +1,52 @@
+PUBLIC OFFER — ITP HRM SOFTWARE SERVICE
+Draft for legal review. Jurisdiction: Republic of Kazakhstan. This English version is not effective unless separately approved and published.
+
+1. Parties and purpose
+1.1. ITP Mining LLP (Provider) offers business customers access to ITP HRM at https://platform.itpmining.kz/hrm/.
+1.2. The software supports employee records, staffing and organizational structure, personnel operations, leave schedules and balances, timesheets, personnel documents, reports, training and talent reserve, within the modules included in a published plan.
+1.3. The Provider supplies software, not employer-of-record services, legal advice or automatic compliance certification. Each Customer remains responsible for its employment decisions, labour records, accuracy and legal obligations.
+1.4. A company administrator may manage its own tenant but does not gain platform-wide administrative powers.
+
+2. Registration and acceptance
+2.1. A duly authorized representative verifies a business email, reviews the currently published applicable legal documents, and creates an organization.
+2.2. Acceptance of a published version and, where applicable, payment of an agreed invoice establishes the contractual relationship to the extent permitted by law.
+2.3. Each legal version has a jurisdiction, language, effective date and recorded consent. An unpublished draft is not an offer capable of acceptance.
+2.4. The representative may not accept personal-data processing terms on behalf of all employees. The employer must have separate, valid grounds to enter and process their information.
+
+3. HRM functionality
+3.1. The published plan controls the contracted scope of functional modules and capacity. Authentication, confidentiality, role-based access restrictions and security audit mechanisms remain mandatory safeguards regardless of plan.
+3.2. Employee profiles, employment agreements, medical absence evidence, compensation, performance and career records may include sensitive personal data. The Customer configures appropriate access and ensures legitimate processing.
+3.3. The Customer reviews all generated orders, reports and printable forms before legal use. The Provider is not responsible for HR decisions made from incorrect input.
+
+4. Plans, billing and subscriptions
+4.1. The currently published plan and Tariff Policy define prices, limits, duration and invoicing terms. Product plans are organization-specific; Portal multi-company entitlements do not transfer to HRM.
+4.2. A generated invoice or uploaded proof of payment does not constitute settlement. Paid access requires verification by an authorized Provider representative.
+4.3. An unpaid plan may remain pending payment. Technical plan enforcement is only enabled following tested and documented rollout.
+4.4. Versioned plan conditions attached to a paid subscription remain recorded and are not retroactively replaced by a newly published draft.
+
+5. Customer obligations
+5.1. Enter accurate personnel information, limit access to authorized staff, maintain lawful grounds for processing employee personal data, and immediately revoke obsolete access.
+5.2. Protect credentials, report incidents and prevent unauthorized access to other companies.
+5.3. Do not upload unlawful material or use the service for purposes inconsistent with employment administration.
+
+6. Provider obligations
+6.1. Deliver the contracted functionality and apply reasonable organizational and technical safeguards, including access separation and event logging.
+6.2. Handle support requests and communicate material changes to paid terms.
+6.3. Do not exploit Customer employee data for unrelated marketing or disclosure outside the contractual and lawful purposes.
+6.4. Necessary planned maintenance and incident recovery may cause interruptions; service commitments are governed by the agreed contract.
+
+7. Confidentiality, legal duties and disputes
+7.1. Personal-data processing is subject to the Privacy Policy, applicable agreements and Kazakhstan law. The Customer determines the lawful purposes and categories of employee records.
+7.2. Processing data from another jurisdiction, including cross-border transfers, requires separate applicable safeguards and legal review.
+7.3. The parties remain liable for their own breaches under applicable law. Mandatory statutory rights are not excluded.
+7.4. Complaints should first be directed to the Provider and resolved through discussions; unresolved matters follow applicable jurisdiction and contractual provisions.
+
+8. Term, termination and records
+8.1. The agreement continues for the accepted and paid period, subject to lawful termination.
+8.2. Termination does not authorize unrestricted deletion of employment records subject to statutory retention obligations. Export, preservation and deletion must follow the applicable agreement and law.
+8.3. Updated offers are separately versioned and published; they do not silently modify already paid periods.
+
+9. Contact
+9.1. Provider: ITP Mining LLP, Republic of Kazakhstan. Contact: info@itpmining.kz.
+9.2. Official address, business registration details, banking data and signatory must be verified before approval and included in the invoice where required.
+9.3. This is an adapted legal draft, not an approved publication.

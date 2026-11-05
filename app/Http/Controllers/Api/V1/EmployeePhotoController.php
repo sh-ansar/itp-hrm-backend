@@ -23,7 +23,7 @@ final class EmployeePhotoController extends Controller
             abort_unless((bool) config('hrm.personnel_writes_enabled', false), 404);
         }
         $row = DB::table('employees')->where('company_id', $company)->where('id', $employee)
-            ->first(['revision', 'photo_path']);
+            ->first(['revision', 'photo_path', 'photo_byte_size']);
         abort_if($row === null, 404);
         return $row;
     }
@@ -71,7 +71,7 @@ final class EmployeePhotoController extends Controller
         $path = 'employee-photos/'.$company.'/'.$employee.'/'.bin2hex(random_bytes(16)).'.jpg';
         abort_unless(Storage::disk('local')->put($path, $jpeg), 500);
         try {
-            $this->commitPhoto($request, $company, $employee, $record, $path, $audit);
+            $this->commitPhoto($request, $company, $employee, $record, $path, $audit, strlen($jpeg));
         } catch (\Throwable $error) {
             Storage::disk('local')->delete($path);
             throw $error;
@@ -94,12 +94,18 @@ final class EmployeePhotoController extends Controller
         return response()->json(['data' => ['has_photo' => false, 'revision' => (int) $record->revision + 1]]);
     }
 
-    private function commitPhoto(Request $request, string $company, string $employee, object $record, ?string $path, HrAuditWriter $audit): void
+    private function commitPhoto(Request $request, string $company, string $employee, object $record, ?string $path, HrAuditWriter $audit, int $photoBytes = 0): void
     {
-        DB::transaction(function () use ($request, $company, $employee, $record, $path, $audit): void {
+        DB::transaction(function () use ($request, $company, $employee, $record, $path, $audit, $photoBytes): void {
+            if ($path !== null) {
+                $quota = app(\App\Services\HrmSaasEntitlements::class);
+                $quota->assertFileSize($company, $photoBytes);
+                $quota->assertStorageCapacity($company, $photoBytes, (int) ($record->photo_byte_size ?? 0));
+            }
             $updated = DB::table('employees')->where('company_id', $company)->where('id', $employee)
                 ->where('revision', $record->revision)->update([
-                    'photo_path' => $path, 'revision' => (int) $record->revision + 1, 'updated_at' => now(),
+                    'photo_path' => $path, 'photo_byte_size' => $path === null ? 0 : $photoBytes,
+                    'revision' => (int) $record->revision + 1, 'updated_at' => now(),
                 ]);
             abort_unless($updated === 1, 409);
             $audit->record($request->user(), $company,

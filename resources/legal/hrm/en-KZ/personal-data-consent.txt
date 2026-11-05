@@ -1,0 +1,37 @@
+PERSONAL DATA CONSENT — ITP HRM ACCOUNT HOLDER
+Draft for legal review. Jurisdiction: Kazakhstan.
+
+1. Individual consent
+1.1. By expressly accepting the currently published applicable version of this document, an ITP HRM account holder may consent to processing of THEIR OWN personal information by ITP Mining LLP for the purposes below.
+1.2. An organization administrator does not consent on behalf of all employees. The employer must separately establish the lawful basis for entering employee records, including identity, payroll and health-related materials.
+1.3. The document has an effective date, language, version, jurisdiction and recorded content fingerprint.
+
+2. Personal information covered
+2.1. Account holder's name, email, business contact details, organization, role, photo and user preferences.
+2.2. Account and security data: protected password hash, session identifiers, IP address, browser data and authorized operations.
+2.3. Commercial details associated with the user's company, if the invoicing function is available.
+2.4. Employees' personal identifiers, medical details, employment history and salaries are not included in this account holder's consent.
+
+3. Purposes
+3.1. Account creation, email verification, authentication, secure access to HRM and support.
+3.2. Performance of the service agreement, operation of lawful HR workflows and necessary transactional notices.
+3.3. Security, misuse detection, audit, invoicing and compliance with legitimate legal requirements.
+3.4. Unrelated advertising requires separate valid consent or another lawful ground and is not covered here.
+
+4. Recipients and transfer safeguards
+4.1. Necessary data may be processed by authorized hosting, email and payment-service providers subject to appropriate safeguards.
+4.2. Disclosures to authorities require lawful grounds.
+4.3. Cross-border processing is permitted only where applicable legal requirements are met. This acceptance does not automatically permit export of the employer's entire HR database.
+
+5. Duration, withdrawal and rights
+5.1. Consent may be withdrawn in the manner required by Kazakhstan law; write to info@itpmining.kz for a verified request.
+5.2. Withdrawal may not remove mandatory legal retention requirements that operate independently.
+5.3. Employer-administered employee records are subject to their own legal bases and rights procedures.
+
+6. Recording
+6.1. The Service records the version ID, language, jurisdiction, timestamp and integrity fingerprint of the document accepted.
+6.2. Only the account holder's own affirmative action constitutes their acceptance.
+6.3. A draft or an unapproved translation must not be used to register new users.
+
+7. Publication
+7.1. This is a proposed localized text and remains inactive pending qualified legal review and authorization.

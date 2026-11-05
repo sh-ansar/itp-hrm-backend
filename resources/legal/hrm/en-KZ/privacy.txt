@@ -1,0 +1,43 @@
+ITP HRM PRIVACY POLICY
+Draft for legal review. Jurisdiction: Republic of Kazakhstan.
+
+1. Scope and roles
+1.1. ITP Mining LLP provides the ITP HRM technical service for employee administration. The employer organization decides why and on what lawful basis its employees' information is entered and processed.
+1.2. The Provider processes account and service information for authentication, contractual service delivery and safety, and handles employee records within the Customer's lawful instructions and applicable obligations.
+1.3. This policy is not a blanket employee consent and does not replace separate legal grounds for employee records or cross-border transfers.
+
+2. Data categories
+2.1. User information: name, email, role, employer, account settings, photo, protected password hash and session data.
+2.2. HR records: employee identity and contacts, identifiers where lawfully collected, department, position, manager, job history, employment documents and personnel orders.
+2.3. Work information: payroll and compensation fields, leave balances and schedules, attendance, timesheets, training, career development and talent reserve.
+2.4. Sensitive data: medical absence evidence or related health information may require a stricter lawful basis and minimum-necessary processing.
+2.5. Technical information: IP address, browser, operating system, sign-in events, essential cookies, audit logs and security diagnostics.
+2.6. Billing records: organization details, plan, invoice and payment proof only where commercial features are available.
+
+3. Processing purposes
+3.1. Verify users and manage secure, role-limited access to HRM.
+3.2. Provide contracted HR operations and support the Customer's legitimate personnel administration.
+3.3. Resolve support tickets, preserve integrity and security, and meet applicable contractual or legal requirements.
+3.4. Use minimized diagnostics for service quality. Employee records must not be repurposed for unauthorized advertising.
+
+4. Access and security
+4.1. The Customer assigns roles according to legitimate business need and removes access when a person leaves or changes duties.
+4.2. The Provider uses reasonable access, transmission and audit safeguards. The existence of a file link alone does not grant the right to share that file.
+4.3. Security incidents are handled under applicable obligations and the relevant customer agreement.
+
+5. Disclosure and transfers
+5.1. Information is shared with authorized Customer personnel, lawfully appointed technical service providers and public authorities only where applicable legal grounds exist.
+5.2. Cross-border hosting and transfers require independent verification under relevant laws. An administrator's consent is not employee consent for such transfers.
+
+6. Retention and deletion
+6.1. HR retention depends on statutory employer obligations, lawful processing grounds and contractual arrangements.
+6.2. Ending a subscription does not automatically authorize permanent deletion of employment records. Export, secure retention and deletion follow agreed procedures and the law.
+6.3. Security logs and billing records may be kept for mandatory periods independently of account termination.
+
+7. Cookies and user rights
+7.1. Essential cookies enable secure login; selected UI preferences may be stored locally. Disabling required cookies may prevent authentication.
+7.2. A data subject may request access, correction and other rights available under applicable law. The employer is normally the first contact for employee HR records.
+7.3. Questions addressed to the Provider may be sent to info@itpmining.kz, subject to identity and authorization checks.
+
+8. Effective publication
+8.1. This translation and its Kazakhstan-specific legal content require independent review and approved publication. An unpublished draft does not establish current terms.

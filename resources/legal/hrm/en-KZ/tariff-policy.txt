@@ -1,0 +1,42 @@
+ITP HRM TARIFF POLICY AND SERVICE TERMS
+Draft for commercial and legal approval. Jurisdiction: Kazakhstan.
+
+1. Scope
+1.1. The tariff policy governs plans for ITP HRM only, not the ITP Portal, Inventory or MRO applications.
+1.2. Only the currently approved and published plan version is a public offer. Draft or internal versions are not available for purchase.
+1.3. Each subscription is associated with one HRM organization; a unified multi-company subscription is not currently supported.
+
+2. Proposed plans and HRM features
+2.1. Three monthly draft tariffs have been adapted from the existing ITP Portal commercial price reference:
+Start — KZT 14,900 per month, 2 licensed user accounts, 50 employee records, one organization; employees, staffing, HR operations, documents, and mandatory permissions.
+Growth — KZT 69,900 per month, 5 licensed user accounts, 150 employee records, one organization; adds leave schedules and balances, timesheets, work planning and reports.
+Business — KZT 299,900 per month, 10 licensed user accounts, 500 employee records, one organization; adds employee learning, development and talent reserve.
+2.2. Proposed technical file limits are 1 GiB per organization and 35 MiB per uploaded file. Such limits shall not be advertised as active controls until actually enforced and tested on the backend.
+2.3. An employee record is not the same as a licensed login account; these counters have separate limits.
+2.4. Authentication, role checks, access logs and privacy safeguards are security controls, never optional paid upgrades.
+2.5. Project feeds, chat, calls, project boards and other Portal-only modules do not form part of an HRM plan.
+
+3. Price, tax and invoice
+3.1. The above prices are commercial proposals until formally approved. Any applicable tax is specified in the issued invoice according to the Provider's current tax position and applicable law.
+3.2. An invoice must specify the selected plan version, period, currency and payment details.
+3.3. Invoice creation and uploading a payment receipt do not activate the paid period. Access begins only following verified payment or another documented authorized arrangement.
+3.4. No automatic recurring debit is assumed. Renewal and any discounts must be explicitly agreed.
+3.5. New prices and module changes cannot retroactively reduce already paid contractual terms.
+
+4. Usage limits and storage
+4.1. The plan displays permitted user accounts, employee profiles, organizations, storage and maximum file size separately.
+4.2. When technically supported, reaching a plan limit may restrict new operations but does not justify uncontrolled deletion of saved HR records.
+4.3. The Customer is responsible for the lawfulness and content of all files and personnel records uploaded to HRM.
+
+5. Additional services
+5.1. Data migration, custom development, integration with accounting systems and extended support require an explicit agreement unless listed in an approved plan.
+5.2. Features that exist only as designs are not included until implemented and accepted.
+
+6. Complaints and refunds
+6.1. Claims about incorrect billing, duplicate payments or service disruptions are handled in accordance with the contract and mandatory applicable law.
+6.2. Send billing questions with the invoice reference to info@itpmining.kz. Never email passwords, CVV codes or complete payment-card data.
+6.3. Legal review must confirm refund conditions, taxation, effective date and the complete payment workflow before this policy may be published.
+
+7. Changes
+7.1. Tariff changes require a new version, jurisdiction, effective date and authorized publication.
+7.2. This document remains a draft until commercial, technical and legal approval.
